@@ -1,0 +1,46 @@
+{
+  "name": "aiexe",
+  "version": "1.0.95",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "aiexe": "index.js"
+  },
+  "license": "AGPL-version-3.0",
+  "private": false,
+  "engines": {
+    "node": ">= 14.0.0",
+    "npm": ">= 6.0.0"
+  },
+  "homepage": "",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "bugs": "",
+  "keywords": [],
+  "author": {
+    "name": "",
+    "email": "",
+    "url": ""
+  },
+  "contributors": [],
+  "scripts": {
+    "dev": "",
+    "test": ""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.7",
+    "axios": "^1.6.8",
+    "boxen": "^7.1.1",
+    "chalk": "^5.3.0",
+    "cli-highlight": "^2.1.11",
+    "commander": "^12.0.0",
+    "express": "^4.19.2",
+    "figlet": "^1.7.0",
+    "ora": "^8.0.1",
+    "readline-sync": "^1.4.10",
+    "shelljs": "^0.8.5"
+  }
+}
