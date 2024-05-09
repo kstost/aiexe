@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.96';
+    const VERSION = '1.0.97';
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -357,6 +357,67 @@ import os from 'os';
         return doctorOk;
     }
     let testmode = !true;
+    async function execInVenv(command, app) {
+        let response = await new Promise(resolve => {
+            app = app.toLowerCase();
+            let python = ['python', 'python3'].includes(app);
+            let pip = ['pip', 'pip3'].includes(app);
+            let child;
+            function addslashes(str) { return str.replace(/[\\"]/g, '\\$&').replace(/\u0000/g, '\\0'); }
+            if (isWindows()) {
+                let activateCmd = `${PYTHON_VENV_PATH}\\Scripts\\Activate.ps1`;
+                let pythonInterpreterPath = ''
+                if (python) pythonInterpreterPath = ([
+                    `${PYTHON_VENV_PATH}\\Scripts\\python.exe`,
+                    `${PYTHON_VENV_PATH}\\Scripts\\python3.exe`,
+                    python_interpreter
+                ]).find(fs.existsSync);
+                else if (pip) pythonInterpreterPath = ([
+                    `${PYTHON_VENV_PATH}\\Scripts\\pip.exe`,
+                    `${PYTHON_VENV_PATH}\\Scripts\\pip3.exe`,
+                ]).find(fs.existsSync);
+                const python_interpreter_ = pythonInterpreterPath || '';
+                if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
+                let pythonCmd = `${python_interpreter_} ${addslashes(command)}`;
+                let runcmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; ${pythonCmd}" < nul`;
+                // console.log(runcmd);
+                child = shelljs.exec(runcmd, { async: true, silent: true });
+            } else {
+                let pythonInterpreterPath = ''
+                if (python) pythonInterpreterPath = ([
+                    `${PYTHON_VENV_PATH}/bin/python`,
+                    `${PYTHON_VENV_PATH}/bin/python3`,
+                    python_interpreter
+                ]).find(fs.existsSync);
+                else if (pip) pythonInterpreterPath = ([
+                    `${PYTHON_VENV_PATH}/bin/pip`,
+                    `${PYTHON_VENV_PATH}/bin/pip3`,
+                ]).find(fs.existsSync);
+                const python_interpreter_ = pythonInterpreterPath || '';
+                if (!python_interpreter) throw new Error('Python Interpreter Not Found');
+                let runcmd = `"${bash_path}" -c "source "${PYTHON_VENV_PATH}/bin/activate" && "${python_interpreter_}" ${addslashes(command)} < /dev/null"`;
+                // console.log(runcmd)
+                child = shelljs.exec(runcmd, { async: true, silent: true });
+            }
+            let stdout = [];
+            let stderr = [];
+            child.stdout.on('data', function (data) {
+                stdout.push(data);
+                process.stdout.write(chalk.greenBright(data));
+            });
+            child.stderr.on('data', function (data) {
+                if (data.indexOf(`warnings.warn("`) > -1 && data.indexOf(`Warning: `) > -1) return;
+                stderr.push(data);
+                process.stderr.write(chalk.red(data));
+            });
+            child.on('close', function (code) {
+                stdout = stdout.join('');
+                stderr = stderr.join('');
+                resolve({ code, stdout, stderr });
+            });
+        });
+        return response;
+    }
 
     async function shell_exec(python_code) {
         let response = await new Promise(resolve => {
@@ -619,6 +680,7 @@ import os from 'os';
                     `- Response only the python code.`,
                     `- As import modules, use try-except to first check whether the module you want to use exists, and if it does not exist, include logic to install it as a subprocess not the way commanding in Jupyter Notebooks like \`!pip\``,
                     `- Please avoid using commands that only work in interactive environments like Jupyter Notebooks, especially those starting with \`!\`, in standard Python script files.`,
+                    `- Always use the explicit output method via the print function, not expression evaluation, when your Python code displays results.`,
                     `- Code should include all dependencies such as variables and functions required for proper execution.`,
                     `- Never explain about response`,
                     `- The code must contain all dependencies such as referenced modules, variables, functions, and classes in one code.`,
@@ -1226,8 +1288,16 @@ import os from 'os';
         .option('-d, --destination <destination>', 'Destination language', '')
         .option('-c, --choosevendor', 'Choose LLM Vendor')
         .option('-m, --choosemodel', 'Choose LLM Model')
-        .option('-b, --debug', 'Debug mode') // 버퍼 크기 옵션 추가
+        .option('-b, --debug', 'Debug mode')
+        .option('-p, --python <command>', 'Run a command in the Python virtual environment')
         .action(async (prompt, options) => {
+            if (options.python) {
+                let clone = options.python.split(' ');
+                let commd = clone[0];
+                clone.shift();
+                await execInVenv(clone.join(' '), commd);
+                return;
+            }
             if (options.destination) {
                 let forignLanguage = { "en": "foreign language", "fr": "langue étrangère", "ko": "외국어", "ja": "外国語", "vi": "ngoại ngữ", "es": "idioma extranjero", "de": "Fremdsprache", "zh": "外语", "ru": "иностранный язык", "it": "lingua straniera", "pt": "língua estrangeira", "hi": "विदेशी भाषा" };
                 let hello = { "en": "Hello", "fr": "Bonjour", "ko": "안녕하세요", "ja": "こんにちは", "vi": "Xin chào", "es": "Hola", "de": "Hallo", "zh": "你好", "ru": "Привет", "it": "Ciao", "pt": "Olá", "hi": "नमस्ते", };
