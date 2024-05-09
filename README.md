@@ -11,9 +11,10 @@ Welcome to aiexe, the cutting-edge command-line interface (CLI) tool that integr
    - [Linux Installation](#linux-installation)
 4. [Usage](#usage)
 5. [Safety Features](#safety-features)
-6. [Contribute](#contribute)
-7. [Support](#support)
-8. [Subscribe](#subscribe)
+6. [Additional Python Environment Setup](#additional-python-environment-setup)
+7. [Contribute](#contribute)
+8. [Support](#support)
+9. [Subscribe](#subscribe)
 
 ## Features
 
@@ -84,6 +85,22 @@ aiexe "Convert all jpg files in the /Users/kst/Downloads/data folder to black an
 To ensure that generated code does not negatively impact your system or external environment, `aiexe` requires manual confirmation from the user before executing any commands. This feature enhances security by allowing you to evaluate and approve commands before they are run. Please be cautious and make sure you understand the purpose and implications of any AI-generated code before you use it.
 
 **Disclaimer**: The user assumes full responsibility for the use of `aiexe`. Ensure that you operate in a safe environment and carefully consider the intent and consequences of the code you execute.
+
+## Additional Python Environment Setup
+
+When using `aiexe` to generate Python code, you might require additional Python packages to fully execute the generated scripts. To facilitate this, `aiexe` allows you to pre-install necessary Python packages into its virtual environment.
+
+You can install individual packages using the command:
+```bash
+aiexe -p "pip install numpy pandas"
+```
+
+Alternatively, if you have a `requirements.txt` file that lists all the necessary packages, you can install all of them at once with:
+```bash
+aiexe -p "pip install -r requirements.txt"
+```
+
+This feature ensures that all dependencies are resolved before executing any AI-generated Python code, providing a smoother and more efficient workflow.
 
 ## Contribute
 
