@@ -250,13 +250,18 @@ import os from 'os';
             });
         }
     };
+    function isBadStr(ppath) {
+        if (ppath.indexOf(`"`) > -1) return !false;
+        if (ppath.indexOf(`'`) > -1) return !false;
+        return !true;
+    }
     async function which_python() {
         let list = ['python', 'python3'];
         for (let i = 0; i < list.length; i++) {
             let name = list[i];
             let ppath = await which(name);
             if (!ppath) continue;
-            if (false) if (ppath.indexOf(' ') > -1) throw ppath;
+            if (isBadStr(ppath)) throw ppath;
             let str = `${Math.random()}`;
             let rfg;
             if (isWindows()) rfg = await execAdv(`& '${ppath}' -c \\"print('${str}')\\"`);
@@ -1025,7 +1030,7 @@ import os from 'os';
         } else {
             let pythonCmd = `'${python_interpreter}' -m py_compile '${filepath}'`;
             return await new Promise(resolve => {
-                shelljs.exec(`${bash_path} -c "source ${PYTHON_VENV_PATH}/bin/activate && ${pythonCmd}"`, { silent: true }, function (code, stdout, stderr) {
+                shelljs.exec(`"${bash_path}" -c "source \\"${PYTHON_VENV_PATH}/bin/activate\\" && ${pythonCmd}"`, { silent: true }, function (code, stdout, stderr) {
                     resolve(stderr.trim())
                 });
             });
@@ -1160,10 +1165,10 @@ import os from 'os';
                 } else if (e.code === 'ECONNREFUSED') {
                     let ollamaPath = (await which('ollama')).trim();
                     if (!ollamaPath) break;
-                    if (false) if (ollamaPath.indexOf(' ') > -1) break;
+                    if (isBadStr(ollamaPath)) break;
                     let ddd;
                     if (isWindows()) ddd = await execAdv(`& '${ollamaPath}' list`, true, { timeout: 5000 });
-                    else ddd = await execAdv(`${ollamaPath} list`, true, { timeout: 5000 });
+                    else ddd = await execAdv(`"${ollamaPath}" list`, true, { timeout: 5000 });
                     let { code } = ddd;
                     if (code) break;
                     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1265,9 +1270,9 @@ import os from 'os';
                 await loadConfig(true);
                 return await installProcess();
             }
-            else if (false && ollamaPath.indexOf(' ') > -1) {
+            else if (isBadStr(ollamaPath)) {
                 print(`* Ollama found located at "${ollamaPath}"`);
-                print("However, the path should not contain spaces.");
+                print("However, the path should not contain ', \".");
                 await disableVariable('USE_LLM');
                 await loadConfig(true);
                 return await installProcess();
@@ -1328,9 +1333,9 @@ import os from 'os';
             console.error('This app requires python interpreter.')
             process.exit(1)
             return;
-        } else if (false && python_interpreter.indexOf(' ') > -1) {
+        } else if (isBadStr(python_interpreter)) {
             print(`* Python interpreter found located at "${e}"`);
-            print("However, the path should not contain spaces.");
+            print("However, the path should not contain ', \".");
             process.exit(1)
             return;
         }
