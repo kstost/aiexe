@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.113'; // version
+    const VERSION = '1.0.114'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -193,13 +193,6 @@ import os from 'os';
             });
         })
     }
-    async function exec(cmd) {
-        return await new Promise(function (resolve) {
-            shelljs.exec(cmd, { silent: true }, function (code, stdout, stderr) {
-                resolve(stdout.trim());
-            });
-        });
-    };
     function getModelName() {
         if (USE_LLM === 'openai') return OPENAI_MODEL;
         if (USE_LLM === 'gemini') return GEMINI_MODEL;
@@ -263,9 +256,12 @@ import os from 'os';
             let name = list[i];
             let ppath = await which(name);
             if (!ppath) continue;
-            if (ppath.indexOf(' ') > -1) throw ppath;
+            if (false) if (ppath.indexOf(' ') > -1) throw ppath;
             let str = `${Math.random()}`;
-            let { stdout } = await execAdv(`${ppath} -c "print('${str}')"`, false);
+            let rfg;
+            if (isWindows()) rfg = await execAdv(`& '${ppath}' -c \\"print('${str}')\\"`, false);
+            else rfg = await execAdv(`"${ppath}" -c "print('${str}')"`, false);
+            let { stdout } = rfg;
             if (stdout.trim() === str) return ppath;
         }
     }
@@ -380,8 +376,8 @@ import os from 'os';
                 ]).find(fs.existsSync);
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
-                let pythonCmd = `${python_interpreter_} ${addslashes(command)}`;
-                let runcmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; ${pythonCmd}" < nul`;
+                let pythonCmd = `'${python_interpreter_}' ${addslashes(command)}`;
+                let runcmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; {& ${pythonCmd}}" < nul`;
                 // console.log(runcmd);
                 child = shelljs.exec(runcmd, { async: true, silent: true });
             } else {
@@ -397,7 +393,7 @@ import os from 'os';
                 ]).find(fs.existsSync);
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter) throw new Error('Python Interpreter Not Found');
-                let runcmd = `"${bash_path}" -c "source "${PYTHON_VENV_PATH}/bin/activate" && "${python_interpreter_}" ${addslashes(command)} < /dev/null"`;
+                let runcmd = `"${bash_path}" -c "source \\"${PYTHON_VENV_PATH}/bin/activate\\" && \\"${python_interpreter_}\\" ${addslashes(command)} < /dev/null"`;
                 // console.log(runcmd)
                 child = shelljs.exec(runcmd, { async: true, silent: true });
             }
@@ -443,8 +439,8 @@ import os from 'os';
                 ].find(fs.existsSync);
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
-                let pythonCmd = `${python_interpreter_} -u '${scriptPath}'`;
-                child = shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; ${pythonCmd}" < nul`, { async: true, silent: true });
+                let pythonCmd = `'${python_interpreter_}' -u '${scriptPath}'`;
+                child = shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; {& ${pythonCmd}}" < nul`, { async: true, silent: true });
             } else {
                 const pythonInterpreterPath = [
                     `${PYTHON_VENV_PATH}/bin/python`,
@@ -453,7 +449,7 @@ import os from 'os';
                 ].find(fs.existsSync);
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter) throw new Error('Python Interpreter Not Found');
-                child = shelljs.exec(`"${bash_path}" -c "source "${PYTHON_VENV_PATH}/bin/activate" && "${python_interpreter_}" -u "${scriptPath}" < /dev/null"`, { async: true, silent: true });
+                child = shelljs.exec(`"${bash_path}" -c "source \\"${PYTHON_VENV_PATH}/bin/activate\\" && \\"${python_interpreter_}\\" -u \\"${scriptPath}\\" < /dev/null"`, { async: true, silent: true });
             }
             let stdout = [];
             let stderr = [];
@@ -1019,10 +1015,10 @@ import os from 'os';
     }
     async function code_validator(filepath) { // OK
         if (isWindows()) {
-            let pythonCmd = `${python_interpreter} -m py_compile '${filepath}'`;
+            let pythonCmd = `'${python_interpreter}' -m py_compile '${filepath}'`;
             let activateCmd = `${PYTHON_VENV_PATH}\\Scripts\\Activate.ps1`;
             return await new Promise(resolve => {
-                shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; ${pythonCmd}" < nul`, { silent: true }, function (code, stdout, stderr) {
+                shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; {& ${pythonCmd}}" < nul`, { silent: true }, function (code, stdout, stderr) {
                     resolve(stderr.trim())
                 });
             });
@@ -1164,8 +1160,11 @@ import os from 'os';
                 } else if (e.code === 'ECONNREFUSED') {
                     let ollamaPath = (await which('ollama')).trim();
                     if (!ollamaPath) break;
-                    if (ollamaPath.indexOf(' ') > -1) break;
-                    let { code } = await execAdv(`${ollamaPath} list`, true, { timeout: 5000 });
+                    if (false) if (ollamaPath.indexOf(' ') > -1) break;
+                    let ddd;
+                    if (isWindows()) ddd = await execAdv(`& '${ollamaPath}' list`, true, { timeout: 5000 });
+                    else ddd = await execAdv(`${ollamaPath} list`, true, { timeout: 5000 });
+                    let { code } = ddd;
                     if (code) break;
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 } else {
@@ -1199,7 +1198,9 @@ import os from 'os';
                 let path = await venvCandidatePath();
                 oraStart('Creating virtual environment for Python');
                 if (disableOra) oraStop();
-                let res = await execAdv(`${pythonPath} -m venv "${path}"`)
+                let res;
+                if (isWindows()) res = await execAdv(`& '${pythonPath}' -m venv \\"${path}\\"`); //dt
+                else res = await execAdv(`"${pythonPath}" -m venv "${path}"`)
                 if (res.code === 0) {
                     await setVarVal('PYTHON_VENV_PATH', path);
                     oraSucceed(chalk.greenBright('Creating virtual environment for Python successed'));
@@ -1264,7 +1265,7 @@ import os from 'os';
                 await loadConfig(true);
                 return await installProcess();
             }
-            else if (ollamaPath.indexOf(' ') > -1) {
+            else if (false && ollamaPath.indexOf(' ') > -1) {
                 print(`* Ollama found located at "${ollamaPath}"`);
                 print("However, the path should not contain spaces.");
                 await disableVariable('USE_LLM');
@@ -1327,7 +1328,7 @@ import os from 'os';
             console.error('This app requires python interpreter.')
             process.exit(1)
             return;
-        } else if (python_interpreter.indexOf(' ') > -1) {
+        } else if (false && python_interpreter.indexOf(' ') > -1) {
             print(`* Python interpreter found located at "${e}"`);
             print("However, the path should not contain spaces.");
             process.exit(1)
