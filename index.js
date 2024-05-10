@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.98';
+    const VERSION = '1.0.99';
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -1304,6 +1304,10 @@ import os from 'os';
                 let howAreYou = { "en": "How are you?", "fr": "Comment allez-vous ?", "ko": "어떻게 지내세요?", "ja": "お元気ですか？", "vi": "Bạn khỏe không?", "es": "¿Cómo estás?", "de": "Wie geht es Ihnen?", "zh": "你好吗？", "ru": "Как дела?", "it": "Come stai?", "pt": "Como você está?", "hi": "आप कैसे हैं?", };
                 let whatAreYouDoing = { "en": "What are you doing?", "fr": "Que faites-vous ?", "ko": "무엇을 하고 계세요?", "ja": "何をしていますか？", "vi": "Bạn đang làm gì?", "es": "¿Qué estás haciendo?", "de": "Was machst du?", "zh": "你在做什么？", "ru": "Что ты делаешь?", "it": "Cosa stai facendo?", "pt": "O que você está fazendo?", "hi": "तुम क्या कर रहे हो?", };
                 const langtable = { "en": "English", "fr": "French", "ko": "Korean", "ja": "Japanese", "vi": "Vietnamese", "es": "Spanish", "de": "German", "zh": "Chinese", "ru": "Russian", "it": "Italian", "pt": "Portuguese", "hi": "Hindi", };
+                if (!Object.keys(langtable).includes(options.destination.toLowerCase())) {
+                    console.log(`Unsupported destination language: ${options.destination}`);
+                    return;
+                }
                 const promptTemplate = {
                     [`en`]: [
                         {

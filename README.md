@@ -3,18 +3,23 @@
 Welcome to aiexe, the cutting-edge command-line interface (CLI) tool that integrates powerful AI capabilities directly into your terminal. Designed for developers, tech enthusiasts, and anyone interested in AI-powered automation, aiexe provides an easy-to-use yet robust platform for executing complex tasks with just a few commands. Harness the power of OpenAI's GPT models, Anthropic's Claude models, Ollama's versatile llama3 models, and Gemini models to boost your productivity and enhance your decision-making processes.
 
 ## Table of Contents
-1. [Features](#features)
-2. [Getting Started](#getting-started)
-3. [Installation](#installation)
+1. [Watch Our Demo](#watch-our-demo)
+2. [Features](#features)
+3. [Getting Started](#getting-started)
+4. [Installation](#installation)
    - [Windows Installation](#windows-installation)
    - [macOS Installation](#macos-installation)
    - [Linux Installation](#linux-installation)
-4. [Usage](#usage)
-5. [Safety Features](#safety-features)
-6. [Additional Python Environment Setup](#additional-python-environment-setup)
-7. [Contribute](#contribute)
-8. [Support](#support)
-9. [Subscribe](#subscribe)
+5. [Usage](#usage)
+6. [Translation Feature](#translation-feature)
+7. [Safety Features](#safety-features)
+8. [Additional Python Environment Setup](#additional-python-environment-setup)
+9. [Contribute](#contribute)
+10. [Support](#support)
+11. [Subscribe](#subscribe)
+
+## Watch Our Demo
+Watch our demo video on YouTube to get a quick overview of what aiexe can do for you! Click [here](https://www.youtube.com/watch?v=dvx-gFx6nUw) to watch the video.
 
 ## Features
 
@@ -73,12 +78,99 @@ Before you begin, ensure you have `npm` and Python installed on your system.
 
 ## Usage
 
-Once you have configured your environment and installed `aiexe`, you can start using it to execute AI commands. Here's an example of how to use the CLI:
+`aiexe` can be used with various options. The basic usage is as follows:
+
 ```bash
-aiexe "Convert all jpg files in the /Users/kst/Downloads/data folder to black and white and place them in the /Users/kst/Downloads/data/grayscalephoto folder. If the folder does not exist, make it."
+aiexe [options] [prompt]
 ```
 
-![screen](https://blog.kakaocdn.net/dn/bCf0gD/btsHd8DaTm7/9n0V2nKIWK26sFJ4BkKXak/img.jpg)
+- `prompt`: Enter the prompt for the task to execute.
+
+### Options
+
+- `-V, --version`: Output the version number of `aiexe`.
+- `-r, --resetconfig`: Reset the configuration and Python virtual environment to their initial state.
+- `-s, --source <source>`: Specify the source language. The default is "auto".
+- `-d, --destination <destination>`: Specify the destination language. The default is an empty string ("").
+- `-c, --choosevendor`: Choose the LLM vendor.
+- `-m, --choosemodel`: Choose the LLM model.
+- `-p, --python <command>`: Run a command in the Python virtual environment.
+- `-h, --help`: Display help information.
+
+### Examples
+
+1. Execute a task with a prompt:
+   ```bash
+   aiexe "Convert all jpg files in the /Users/kst/Downloads/data folder to black and white and place them in the /Users/kst/Downloads/data/grayscalephoto folder. If the folder does not exist, make it."
+   ```
+
+2. Choose the LLM vendor:
+   ```bash
+   aiexe -c
+   ```
+
+3. Choose the LLM model:
+   ```bash
+   aiexe -m
+   ```
+
+4. Run a command in the Python virtual environment:
+   ```bash
+   aiexe -p "pip install numpy pandas"
+   ```
+   Or
+   ```bash
+   aiexe -p "pip install -r requirements.txt"
+   ```
+
+## Translation Feature
+
+`aiexe` provides a translation feature that allows you to translate prompts into different languages. To use the translation feature, specify the source language with the optional `-s` option and the destination language with the required `-d` option. The language specification uses ISO 639-1 language codes.
+
+### ISO 639-1 Language Codes
+
+ISO 639-1 is an international standard for representing languages with two-letter codes, established by the International Organization for Standardization (ISO).
+
+For example:
+- en: English
+- fr: French
+- ko: Korean
+- ja: Japanese
+- vi: Vietnamese
+- es: Spanish
+- de: German
+- zh: Chinese
+- ru: Russian
+- it: Italian
+- pt: Portuguese
+- hi: Hindi
+
+### Options
+
+- `-s, --source <source>` (Optional): Specify the source language. The default is "auto", which automatically detects the source language. To specify a specific language, use its ISO 639-1 code.
+- `-d, --destination <destination>` (Required): Specify the destination language using its ISO 639-1 code.
+
+### Usage Examples
+
+1. Translate from English to Korean:
+   ```bash
+   aiexe -s en -d ko "Run a command in the Python virtual environment"
+   ```
+   This command translates "Run a command in the Python virtual environment" to Korean.
+
+2. Translate to Korean using automatic language detection:
+   ```bash
+   aiexe -d ko "파이썬 가상 환경에서 명령어 실행하기"
+   ```
+   This command translates "파이썬 가상 환경에서 명령어 실행하기" to Korean. Since the `-s` option is not specified, it automatically detects the source language.
+
+3. Translate using a pipeline:
+   ```bash
+   echo "Run a command in the Python virtual environment" | aiexe -s en -d ko
+   ```
+   This command passes "Run a command in the Python virtual environment" through a pipeline to `aiexe` and translates it to Korean.
+
+The translation feature makes it more convenient to use `aiexe` in multilingual environments. Specify the appropriate source and destination languages or use a pipeline to translate prompts as needed.
 
 ## Safety Features
 
@@ -95,7 +187,7 @@ You can install individual packages using the command:
 aiexe -p "pip install numpy pandas"
 ```
 
-Alternatively, if you have a `requirements.txt` file that lists all the necessary packages, you can install all of them at once with:
+Alternatively, if you have a `requirements.txt` file that lists all of the necessary packages, you can install all of them at once with:
 ```bash
 aiexe -p "pip install -r requirements.txt"
 ```
