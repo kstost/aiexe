@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.107'; // version
+    const VERSION = '1.0.108'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -1259,11 +1259,13 @@ import os from 'os';
             let ollamaPath = (await which('ollama')).trim();
             if (!ollamaPath) {
                 print('* Ollama is not installed in your system. Ollama is required to use this app');
+                return 1;
                 process.exit(1)
             }
             else if (ollamaPath.indexOf(' ') > -1) {
                 print(`* Ollama found located at "${ollamaPath}"`);
                 print("However, the path should not contain spaces.");
+                return 1;
                 process.exit(1)
             }
             if (ollamaPath && !await isKeyInConfig('OLLAMA_MODEL')) {
@@ -1272,6 +1274,7 @@ import os from 'os';
                     if (!list) {
                         print('* Ollama server is not ready');
                         print(`Ollama command located at ${chalk.bold(ollamaPath)}`)
+                        return 1;
                         process.exit(1);
                         setted = false;
                     }
@@ -1289,6 +1292,7 @@ import os from 'os';
                             }
                         } catch {
                             print('* You have no model installed in Ollama');
+                            return 1;
                             process.exit(1);
                             setted = false;
                         }
@@ -1888,7 +1892,12 @@ import os from 'os';
             } else {
                 await showLogo();
                 try {
-                    await installProcess();
+                    let resutl = await installProcess();
+                    if (resutl === 1) {
+                        await disableVariable('USE_LLM');
+                        await loadConfig(true);
+                        try { await installProcess(); } catch { }
+                    }
                     print('')
                     let request = await ask_prompt_text(` What can I do for you?.`);
                     await mainApp(request);
