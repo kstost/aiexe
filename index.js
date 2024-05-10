@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.106'; // version
+    const VERSION = '1.0.107'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -102,6 +102,9 @@ import os from 'os';
     //-----------------------------------------------
     const bash_path = !isWindows() ? await which(`bash`) : null;
     let python_interpreter;
+    try {
+        python_interpreter = await which_python();
+    } catch { }
     const pwd = await exec('pwd');
     function codeDisplay(mission, python_code) {
         return (highlight(
@@ -1253,11 +1256,15 @@ import os from 'os';
             }
         }
         else if (use_llm === 'ollama') {
-            const ollamaPath = await which('ollama');
+            let ollamaPath = (await which('ollama')).trim();
             if (!ollamaPath) {
                 print('* Ollama is not installed in your system. Ollama is required to use this app');
-                process.exit(1);
-                setted = false;
+                process.exit(1)
+            }
+            else if (ollamaPath.indexOf(' ') > -1) {
+                print(`* Ollama found located at "${ollamaPath}"`);
+                print("However, the path should not contain spaces.");
+                process.exit(1)
             }
             if (ollamaPath && !await isKeyInConfig('OLLAMA_MODEL')) {
                 try {
@@ -1315,29 +1322,13 @@ import os from 'os';
         .option('-p, --python <command>', 'Run a command in the Python virtual environment')
         .action(async (prompt, options) => {
 
-            try {
-                python_interpreter = await which_python();
-                if (!python_interpreter) {
-                    console.error('This app requires python interpreter.')
-                    process.exit(1)
-                }
-            } catch (e) {
+            if (!python_interpreter) {
+                console.error('This app requires python interpreter.')
+                process.exit(1)
+            } else if (python_interpreter.indexOf(' ') > -1) {
                 print(`* Python interpreter found located at "${e}"`);
                 print("However, the path should not contain spaces.");
                 process.exit(1)
-            }
-
-            let ollamaPath = (await which('ollama')).trim();
-            if ('ollama' === await getVarVal('USE_LLM')) {
-                if (!ollamaPath) {
-                    print('* Ollama is not installed in your system. Ollama is required to use this app');
-                    process.exit(1)
-                }
-                else if (ollamaPath.indexOf(' ') > -1) {
-                    print(`* Ollama found located at "${ollamaPath}"`);
-                    print("However, the path should not contain spaces.");
-                    process.exit(1)
-                }
             }
 
             if (!isWindows() && !bash_path) {
