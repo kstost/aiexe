@@ -259,8 +259,8 @@ import os from 'os';
             if (false) if (ppath.indexOf(' ') > -1) throw ppath;
             let str = `${Math.random()}`;
             let rfg;
-            if (isWindows()) rfg = await execAdv(`& '${ppath}' -c \\"print('${str}')\\"`, false);
-            else rfg = await execAdv(`"${ppath}" -c "print('${str}')"`, false);
+            if (isWindows()) rfg = await execAdv(`& '${ppath}' -c \\"print('${str}')\\"`);
+            else rfg = await execAdv(`"${ppath}" -c "print('${str}')"`);
             let { stdout } = rfg;
             if (stdout.trim() === str) return ppath;
         }
