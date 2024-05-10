@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.102';
+    const VERSION = '1.0.103';
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -100,8 +100,30 @@ import os from 'os';
     const GEMINI_MODEL = 'gemini-pro';
     await loadConfig();
     //-----------------------------------------------
+    let ollamaPath = (await which('ollama')).trim();
+    if (!ollamaPath) {
+        print('* Ollama is not installed in your system. Ollama is required to use this app');
+        process.exit(1)
+    }
+    else if (ollamaPath.indexOf(' ') > -1) {
+        print(`* Ollama found located at "${ollamaPath}"`);
+        print("However, the path should not contain spaces.");
+        process.exit(1)
+    }
+
     const bash_path = !isWindows() ? await which(`bash`) : null;
-    const python_interpreter = await which_python();
+    let python_interpreter;
+    try {
+        python_interpreter = await which_python();
+        if (!python_interpreter) {
+            console.error('This app requires python interpreter.')
+            process.exit(1)
+        }
+    } catch (e) {
+        print(`* Python interpreter found located at "${e}"`);
+        print("However, the path should not contain spaces.");
+        process.exit(1)
+    }
     const pwd = await exec('pwd');
     if (!isWindows() && !bash_path) {
         console.error('This app requires bash to function.')
@@ -158,6 +180,7 @@ import os from 'os';
         try {
             let filePath = await getRCPath();
             let content = await readRCDaata();
+            if (!content) throw null;
             let lines = content.split('\n');
             lines = lines.map(line => {
                 let lineback = line;
@@ -241,6 +264,7 @@ import os from 'os';
         }
     };
     async function which(cmd) {
+        if (cmd.indexOf(' ') > -1) process.exit(1);
         if (isWindows()) {
             let { stdout } = await execAdv(`(Get-Command ${cmd}).Source`)
             return stdout.trim();
@@ -262,6 +286,7 @@ import os from 'os';
             let name = list[i];
             let ppath = await which(name);
             if (!ppath) continue;
+            if (ppath.indexOf(' ') > -1) throw ppath;
             let str = `${Math.random()}`;
             let { stdout } = await execAdv(`${ppath} -c "print('${str}')"`, false);
             if (stdout.trim() === str) return ppath;
@@ -641,11 +666,12 @@ import os from 'os';
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     } else if (e.code === 'ECONNREFUSED') {
                         let ollamaPath = (await which('ollama')).trim();
-                        if (!ollamaPath) {
+                        if (!ollamaPath || ollamaPath.indexOf(' ') > -1) {
                             break;
                         } else {
                             let { code } = await execAdv(`${ollamaPath} list`);
                             if (code) break;
+                            await new Promise(resolve => setTimeout(resolve, 2000));
                         }
                     } else {
                         break;
@@ -1168,7 +1194,7 @@ import os from 'os';
     async function installProcess() {
         let setted = false;
         const pythonPath = python_interpreter;
-        if (!pythonPath) {
+        if (!pythonPath || pythonPath.indexOf(' ') > -1) {
             print('* Python is not installed in your system. Python is required to use this app');
             throw new Error('Python is not installed in your system. Python is required to use this app');
         }
@@ -1238,14 +1264,38 @@ import os from 'os';
             const ollamaPath = await which('ollama');
             if (!ollamaPath) {
                 print('* Ollama is not installed in your system. Ollama is required to use this app');
+                setted = false;
             }
-            if (!await isKeyInConfig('OLLAMA_MODEL')) {
+            if (ollamaPath && !await isKeyInConfig('OLLAMA_MODEL')) {
                 try {
                     let list;
-                    try {
-                        list = (await axios.get('http://localhost:11434/api/tags'))
-                    } catch {
-                        print('* Ollama server is not ready')
+                    let count = 10;
+                    while (count >= 0) {
+                        count--;
+                        try {
+                            list = (await axios.get('http://localhost:11434/api/tags'))
+                            break;
+                        } catch (e) {
+                            if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                            } else if (e.code === 'ECONNREFUSED') {
+                                let ollamaPath = (await which('ollama')).trim();
+                                if (!ollamaPath || ollamaPath.indexOf(' ') > -1) {
+                                    break;
+                                } else {
+                                    let { code } = await execAdv(`${ollamaPath} list`);
+                                    if (code) break;
+                                    await new Promise(resolve => setTimeout(resolve, 2000));
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    if (!list) {
+                        print('* Ollama server is not ready');
+                        print(`Ollama command located at ${chalk.bold(ollamaPath)}`)
+                        setted = false;
                     }
                     if (list) {
                         try {
@@ -1261,6 +1311,7 @@ import os from 'os';
                             }
                         } catch {
                             print('* You have no model installed in Ollama');
+                            setted = false;
                         }
                     }
                 } catch {
