@@ -19,7 +19,8 @@ Welcome to aiexe, the cutting-edge command-line interface (CLI) tool that integr
 11. [Subscribe](#subscribe)
 
 ## Watch Our Demo
-Watch our demo video on YouTube to get a quick overview of what aiexe can do for you! Click [here](https://www.youtube.com/watch?v=dvx-gFx6nUw) to watch the video.
+Watch our demo video on YouTube to get a quick overview of what aiexe can do for you! Click [here](https://www.youtube.com/watch?v=dvx-gFx6nUw) to watch the video.  
+[![Video Label](http://img.youtube.com/vi/dvx-gFx6nUw/0.jpg)](https://youtu.be/dvx-gFx6nUw)  
 
 ## Features
 
@@ -158,11 +159,11 @@ For example:
    ```
    This command translates "Run a command in the Python virtual environment" to Korean.
 
-2. Translate to Korean using automatic language detection:
+2. Translate from Korean to English using automatic language detection:
    ```bash
-   aiexe -d ko "파이썬 가상 환경에서 명령어 실행하기"
+   aiexe -d en "파이썬 가상 환경에서 명령어 실행하기"
    ```
-   This command translates "파이썬 가상 환경에서 명령어 실행하기" to Korean. Since the `-s` option is not specified, it automatically detects the source language.
+   This command translates "파이썬 가상 환경에서 명령어 실행하기" to English. Since the `-s` option is not specified, it automatically detects the source language as Korean.
 
 3. Translate using a pipeline:
    ```bash
