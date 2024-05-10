@@ -248,16 +248,16 @@ import os from 'os';
         if (!value) value = 8192; // 걍.. 
         return value;
     }
-    async function execAdv(cmd, mode = true) {
+    async function execAdv(cmd, mode = true, opt = {}) {
         if (isWindows()) {
             return new Promise(resolve => {
-                shelljs.exec(mode ? `powershell -Command "${cmd}"` : cmd, { silent: true }, (code, stdout, stderr) => {
+                shelljs.exec(mode ? `powershell -Command "${cmd}"` : cmd, { silent: true, ...opt }, (code, stdout, stderr) => {
                     resolve({ code, stdout, stderr });
                 })
             })
         } else {
             return await new Promise(function (resolve) {
-                shelljs.exec(cmd, { silent: true }, function (code, stdout, stderr) {
+                shelljs.exec(cmd, { silent: true, ...opt }, function (code, stdout, stderr) {
                     resolve({ code, stdout, stderr });
                 });
             });
@@ -651,7 +651,9 @@ import os from 'os';
             }
             response = airesponse.data;
         } else {
-            while (true) {
+            let count = 10;
+            while (count >= 0) {
+                count--;
                 let tempMessageForIndicator = oraBackupAndStopCurrent();
                 let indicator = ora((`Requesting ${chalk.bold(OLLAMA_MODEL)}`)).start()
                 try {
@@ -665,14 +667,7 @@ import os from 'os';
                     if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     } else if (e.code === 'ECONNREFUSED') {
-                        let ollamaPath = (await which('ollama')).trim();
-                        if (!ollamaPath || ollamaPath.indexOf(' ') > -1) {
-                            break;
-                        } else {
-                            let { code } = await execAdv(`${ollamaPath} list`);
-                            if (code) break;
-                            await new Promise(resolve => setTimeout(resolve, 2000));
-                        }
+                        await turnOnOllamaAndGetModelList();
                     } else {
                         break;
                     }
@@ -680,6 +675,7 @@ import os from 'os';
             }
             response = airesponse?.data?.message?.content;
         }
+        if (!response) response = '';
         return response;
     }
     function combindMessageHistory(summary, messages_, history, askforce) {
@@ -1178,6 +1174,28 @@ import os from 'os';
         await fsPromises.appendFile(rcPath, `\n${cmd}\n`);
         await loadConfig(true);
     }
+    async function turnOnOllamaAndGetModelList() {
+        let count = 10;
+        while (count >= 0) {
+            count--;
+            try {
+                return await axios.get('http://localhost:11434/api/tags');
+            } catch (e) {
+                if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else if (e.code === 'ECONNREFUSED') {
+                    let ollamaPath = (await which('ollama')).trim();
+                    if (!ollamaPath) break;
+                    if (ollamaPath.indexOf(' ') > -1) break;
+                    let { code } = await execAdv(`${ollamaPath} list`, true, { timeout: 5000 });
+                    if (code) break;
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } else {
+                    break;
+                }
+            }
+        }
+    }
     async function getVarVal(key) {
         try {
             const rcPath = await getRCPath();
@@ -1268,30 +1286,7 @@ import os from 'os';
             }
             if (ollamaPath && !await isKeyInConfig('OLLAMA_MODEL')) {
                 try {
-                    let list;
-                    let count = 10;
-                    while (count >= 0) {
-                        count--;
-                        try {
-                            list = (await axios.get('http://localhost:11434/api/tags'))
-                            break;
-                        } catch (e) {
-                            if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
-                                await new Promise(resolve => setTimeout(resolve, 1000));
-                            } else if (e.code === 'ECONNREFUSED') {
-                                let ollamaPath = (await which('ollama')).trim();
-                                if (!ollamaPath || ollamaPath.indexOf(' ') > -1) {
-                                    break;
-                                } else {
-                                    let { code } = await execAdv(`${ollamaPath} list`);
-                                    if (code) break;
-                                    await new Promise(resolve => setTimeout(resolve, 2000));
-                                }
-                            } else {
-                                break;
-                            }
-                        }
-                    }
+                    let list = await turnOnOllamaAndGetModelList();
                     if (!list) {
                         print('* Ollama server is not ready');
                         print(`Ollama command located at ${chalk.bold(ollamaPath)}`)
