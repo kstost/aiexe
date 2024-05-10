@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.104'; // version
+    const VERSION = '1.0.105'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -1284,6 +1284,7 @@ import os from 'os';
             const ollamaPath = await which('ollama');
             if (!ollamaPath) {
                 print('* Ollama is not installed in your system. Ollama is required to use this app');
+                process.exit(1);
                 setted = false;
             }
             if (ollamaPath && !await isKeyInConfig('OLLAMA_MODEL')) {
@@ -1292,6 +1293,7 @@ import os from 'os';
                     if (!list) {
                         print('* Ollama server is not ready');
                         print(`Ollama command located at ${chalk.bold(ollamaPath)}`)
+                        process.exit(1);
                         setted = false;
                     }
                     if (list) {
@@ -1308,6 +1310,7 @@ import os from 'os';
                             }
                         } catch {
                             print('* You have no model installed in Ollama');
+                            process.exit(1);
                             setted = false;
                         }
                     }
