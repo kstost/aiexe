@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.111'; // version
+    const VERSION = '1.0.112'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -429,6 +429,7 @@ import os from 'os';
             let python_code_ = [
                 `${warninglist.map(name => `try:\n   import warnings\n   warnings.filterwarnings("ignore", category=${name})\nexcept Exception as e:\n   pass`).join('\n')}`,
                 `${modulelist.map(name => `try:\n   import ${name}\nexcept Exception as e:\n   pass`).join('\n')}`,
+                `try:\n   sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')\nexcept Exception as e:\n   pass`,
                 `${python_code}`
             ].join('\n');
             fs.writeFileSync(scriptPath, python_code_);
