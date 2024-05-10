@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.109'; // version
+    const VERSION = '1.0.110'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -1261,14 +1261,14 @@ import os from 'os';
                 print('* Ollama is not installed in your system. Ollama is required to use this app');
                 await disableVariable('USE_LLM');
                 await loadConfig(true);
-                await installProcess();
+                return await installProcess();
             }
             else if (ollamaPath.indexOf(' ') > -1) {
                 print(`* Ollama found located at "${ollamaPath}"`);
                 print("However, the path should not contain spaces.");
                 await disableVariable('USE_LLM');
                 await loadConfig(true);
-                await installProcess();
+                return await installProcess();
             }
             if (ollamaPath && !await isKeyInConfig('OLLAMA_MODEL')) {
                 try {
@@ -1278,7 +1278,7 @@ import os from 'os';
                         print(`Ollama command located at ${chalk.bold(ollamaPath)}`)
                         await disableVariable('USE_LLM');
                         await loadConfig(true);
-                        await installProcess();
+                        return await installProcess();
                     }
                     if (list) {
                         try {
@@ -1296,7 +1296,7 @@ import os from 'os';
                             print('* You have no model installed in Ollama');
                             await disableVariable('USE_LLM');
                             await loadConfig(true);
-                            await installProcess();
+                            return await installProcess();
                         }
                     }
                 } catch {
