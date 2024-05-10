@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.112'; // version
+    const VERSION = '1.0.113'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -105,7 +105,7 @@ import os from 'os';
     try {
         python_interpreter = await which_python();
     } catch { }
-    const pwd = await exec('pwd');
+    const pwd = process.cwd();
     function codeDisplay(mission, python_code) {
         return (highlight(
             [`# GENERATED CODE for:`,
