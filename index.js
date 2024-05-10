@@ -382,7 +382,7 @@ import os from 'os';
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
                 let pythonCmd = `'${python_interpreter_}' ${addslashes(command)}`;
-                let runcmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; {& ${pythonCmd}}" < nul`;
+                let runcmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; & ${pythonCmd}" < nul`;
                 // console.log(runcmd);
                 child = shelljs.exec(runcmd, { async: true, silent: true });
             } else {
@@ -445,7 +445,7 @@ import os from 'os';
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
                 let pythonCmd = `'${python_interpreter_}' -u '${scriptPath}'`;
-                child = shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; {& ${pythonCmd}}" < nul`, { async: true, silent: true });
+                child = shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; & ${pythonCmd}" < nul`, { async: true, silent: true });
             } else {
                 const pythonInterpreterPath = [
                     `${PYTHON_VENV_PATH}/bin/python`,
@@ -1023,7 +1023,7 @@ import os from 'os';
             let pythonCmd = `'${python_interpreter}' -m py_compile '${filepath}'`;
             let activateCmd = `${PYTHON_VENV_PATH}\\Scripts\\Activate.ps1`;
             return await new Promise(resolve => {
-                shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; {& ${pythonCmd}}" < nul`, { silent: true }, function (code, stdout, stderr) {
+                shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; & ${pythonCmd}" < nul`, { silent: true }, function (code, stdout, stderr) {
                     resolve(stderr.trim())
                 });
             });
