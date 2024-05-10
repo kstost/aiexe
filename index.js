@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.101';
+    const VERSION = '1.0.102';
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -100,10 +100,10 @@ import os from 'os';
     const GEMINI_MODEL = 'gemini-pro';
     await loadConfig();
     //-----------------------------------------------
-    const bash_path = await which(`bash`);
+    const bash_path = !isWindows() ? await which(`bash`) : null;
     const python_interpreter = await which_python();
     const pwd = await exec('pwd');
-    if (!bash_path) {
+    if (!isWindows() && !bash_path) {
         console.error('This app requires bash to function.')
         process.exit(1)
     }
