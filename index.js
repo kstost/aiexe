@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.100';
+    const VERSION = '1.0.101';
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -1537,7 +1537,7 @@ import os from 'os';
                         if (source?.length !== 2) return;
                     } else {
                         source = source !== "auto" ? source : "";
-                        if (source?.length !== 2) return;
+                        if (!(source?.length === 2 || source?.length === 0)) return;
                     }
                     let counter = 3;
                     while (counter > 0) {
