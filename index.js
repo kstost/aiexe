@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.105'; // version
+    const VERSION = '1.0.106'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -100,37 +100,9 @@ import os from 'os';
     const GEMINI_MODEL = 'gemini-pro';
     await loadConfig();
     //-----------------------------------------------
-    let ollamaPath = (await which('ollama')).trim();
-    if ('ollama' === await getVarVal('USE_LLM')) {
-        if (!ollamaPath) {
-            print('* Ollama is not installed in your system. Ollama is required to use this app');
-            process.exit(1)
-        }
-        else if (ollamaPath.indexOf(' ') > -1) {
-            print(`* Ollama found located at "${ollamaPath}"`);
-            print("However, the path should not contain spaces.");
-            process.exit(1)
-        }
-    }
-
     const bash_path = !isWindows() ? await which(`bash`) : null;
     let python_interpreter;
-    try {
-        python_interpreter = await which_python();
-        if (!python_interpreter) {
-            console.error('This app requires python interpreter.')
-            process.exit(1)
-        }
-    } catch (e) {
-        print(`* Python interpreter found located at "${e}"`);
-        print("However, the path should not contain spaces.");
-        process.exit(1)
-    }
     const pwd = await exec('pwd');
-    if (!isWindows() && !bash_path) {
-        console.error('This app requires bash to function.')
-        process.exit(1)
-    }
     function codeDisplay(mission, python_code) {
         return (highlight(
             [`# GENERATED CODE for:`,
@@ -1342,6 +1314,37 @@ import os from 'os';
         .option('-b, --debug', 'Debug mode')
         .option('-p, --python <command>', 'Run a command in the Python virtual environment')
         .action(async (prompt, options) => {
+
+            try {
+                python_interpreter = await which_python();
+                if (!python_interpreter) {
+                    console.error('This app requires python interpreter.')
+                    process.exit(1)
+                }
+            } catch (e) {
+                print(`* Python interpreter found located at "${e}"`);
+                print("However, the path should not contain spaces.");
+                process.exit(1)
+            }
+
+            let ollamaPath = (await which('ollama')).trim();
+            if ('ollama' === await getVarVal('USE_LLM')) {
+                if (!ollamaPath) {
+                    print('* Ollama is not installed in your system. Ollama is required to use this app');
+                    process.exit(1)
+                }
+                else if (ollamaPath.indexOf(' ') > -1) {
+                    print(`* Ollama found located at "${ollamaPath}"`);
+                    print("However, the path should not contain spaces.");
+                    process.exit(1)
+                }
+            }
+
+            if (!isWindows() && !bash_path) {
+                console.error('This app requires bash to function.')
+                process.exit(1)
+            }
+
             if (options.python) {
                 let clone = options.python.split(' ');
                 let commd = clone[0];
