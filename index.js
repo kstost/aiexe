@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.114'; // version
+    const VERSION = '1.0.115';
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -101,11 +101,12 @@ import os from 'os';
     await loadConfig();
     //-----------------------------------------------
     const bash_path = !isWindows() ? await which(`bash`) : null;
-    let python_interpreter;
-    try {
-        python_interpreter = await which_python();
-    } catch { }
-    const pwd = process.cwd();
+    const python_interpreter = await which_python();
+    const pwd = await exec('pwd');
+    if (!isWindows() && !bash_path) {
+        console.error('This app requires bash to function.')
+        process.exit(1)
+    }
     function codeDisplay(mission, python_code) {
         return (highlight(
             [`# GENERATED CODE for:`,
@@ -157,7 +158,6 @@ import os from 'os';
         try {
             let filePath = await getRCPath();
             let content = await readRCDaata();
-            if (!content) throw null;
             let lines = content.split('\n');
             lines = lines.map(line => {
                 let lineback = line;
@@ -193,6 +193,13 @@ import os from 'os';
             });
         })
     }
+    async function exec(cmd) {
+        return await new Promise(function (resolve) {
+            shelljs.exec(cmd, { silent: true }, function (code, stdout, stderr) {
+                resolve(stdout.trim());
+            });
+        });
+    };
     function getModelName() {
         if (USE_LLM === 'openai') return OPENAI_MODEL;
         if (USE_LLM === 'gemini') return GEMINI_MODEL;
@@ -218,23 +225,22 @@ import os from 'os';
         if (!value) value = 8192; // 걍.. 
         return value;
     }
-    async function execAdv(cmd, mode = true, opt = {}) {
+    async function execAdv(cmd, mode = true) {
         if (isWindows()) {
             return new Promise(resolve => {
-                shelljs.exec(mode ? `powershell -Command "${cmd}"` : cmd, { silent: true, ...opt }, (code, stdout, stderr) => {
+                shelljs.exec(mode ? `powershell -Command "${cmd}"` : cmd, { silent: true }, (code, stdout, stderr) => {
                     resolve({ code, stdout, stderr });
                 })
             })
         } else {
             return await new Promise(function (resolve) {
-                shelljs.exec(cmd, { silent: true, ...opt }, function (code, stdout, stderr) {
+                shelljs.exec(cmd, { silent: true }, function (code, stdout, stderr) {
                     resolve({ code, stdout, stderr });
                 });
             });
         }
     };
     async function which(cmd) {
-        if (cmd.indexOf(' ') > -1) process.exit(1);
         if (isWindows()) {
             let { stdout } = await execAdv(`(Get-Command ${cmd}).Source`)
             return stdout.trim();
@@ -250,23 +256,14 @@ import os from 'os';
             });
         }
     };
-    function isBadStr(ppath) {
-        if (ppath.indexOf(`"`) > -1) return !false;
-        if (ppath.indexOf(`'`) > -1) return !false;
-        return !true;
-    }
     async function which_python() {
         let list = ['python', 'python3'];
         for (let i = 0; i < list.length; i++) {
             let name = list[i];
             let ppath = await which(name);
             if (!ppath) continue;
-            if (isBadStr(ppath)) throw ppath;
             let str = `${Math.random()}`;
-            let rfg;
-            if (isWindows()) rfg = await execAdv(`& '${ppath}' -c \\"print('${str}')\\"`);
-            else rfg = await execAdv(`"${ppath}" -c "print('${str}')"`);
-            let { stdout } = rfg;
+            let { stdout } = await execAdv(`${ppath} -c "print('${str}')"`, false);
             if (stdout.trim() === str) return ppath;
         }
     }
@@ -381,8 +378,8 @@ import os from 'os';
                 ]).find(fs.existsSync);
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
-                let pythonCmd = `'${python_interpreter_}' ${addslashes(command)}`;
-                let runcmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; {& ${pythonCmd}}" < nul`;
+                let pythonCmd = `${python_interpreter_} ${addslashes(command)}`;
+                let runcmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; ${pythonCmd}" < nul`;
                 // console.log(runcmd);
                 child = shelljs.exec(runcmd, { async: true, silent: true });
             } else {
@@ -398,7 +395,7 @@ import os from 'os';
                 ]).find(fs.existsSync);
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter) throw new Error('Python Interpreter Not Found');
-                let runcmd = `"${bash_path}" -c "source \\"${PYTHON_VENV_PATH}/bin/activate\\" && \\"${python_interpreter_}\\" ${addslashes(command)} < /dev/null"`;
+                let runcmd = `"${bash_path}" -c "source "${PYTHON_VENV_PATH}/bin/activate" && "${python_interpreter_}" ${addslashes(command)} < /dev/null"`;
                 // console.log(runcmd)
                 child = shelljs.exec(runcmd, { async: true, silent: true });
             }
@@ -430,7 +427,6 @@ import os from 'os';
             let python_code_ = [
                 `${warninglist.map(name => `try:\n   import warnings\n   warnings.filterwarnings("ignore", category=${name})\nexcept Exception as e:\n   pass`).join('\n')}`,
                 `${modulelist.map(name => `try:\n   import ${name}\nexcept Exception as e:\n   pass`).join('\n')}`,
-                `try:\n   sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')\nexcept Exception as e:\n   pass`,
                 `${python_code}`
             ].join('\n');
             fs.writeFileSync(scriptPath, python_code_);
@@ -444,8 +440,8 @@ import os from 'os';
                 ].find(fs.existsSync);
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
-                let pythonCmd = `'${python_interpreter_}' -u '${scriptPath}'`;
-                child = shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; {& ${pythonCmd}}" < nul`, { async: true, silent: true });
+                let pythonCmd = `${python_interpreter_} -u '${scriptPath}'`;
+                child = shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; ${pythonCmd}" < nul`, { async: true, silent: true });
             } else {
                 const pythonInterpreterPath = [
                     `${PYTHON_VENV_PATH}/bin/python`,
@@ -454,7 +450,7 @@ import os from 'os';
                 ].find(fs.existsSync);
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter) throw new Error('Python Interpreter Not Found');
-                child = shelljs.exec(`"${bash_path}" -c "source \\"${PYTHON_VENV_PATH}/bin/activate\\" && \\"${python_interpreter_}\\" -u \\"${scriptPath}\\" < /dev/null"`, { async: true, silent: true });
+                child = shelljs.exec(`"${bash_path}" -c "source "${PYTHON_VENV_PATH}/bin/activate" && "${python_interpreter_}" -u "${scriptPath}" < /dev/null"`, { async: true, silent: true });
             }
             let stdout = [];
             let stderr = [];
@@ -630,9 +626,7 @@ import os from 'os';
             }
             response = airesponse.data;
         } else {
-            let count = 10;
-            while (count >= 0) {
-                count--;
+            while (true) {
                 let tempMessageForIndicator = oraBackupAndStopCurrent();
                 let indicator = ora((`Requesting ${chalk.bold(OLLAMA_MODEL)}`)).start()
                 try {
@@ -646,7 +640,13 @@ import os from 'os';
                     if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     } else if (e.code === 'ECONNREFUSED') {
-                        await turnOnOllamaAndGetModelList();
+                        let ollamaPath = (await which('ollama')).trim();
+                        if (!ollamaPath) {
+                            break;
+                        } else {
+                            let { code } = await execAdv(`${ollamaPath} list`);
+                            if (code) break;
+                        }
                     } else {
                         break;
                     }
@@ -654,7 +654,6 @@ import os from 'os';
             }
             response = airesponse?.data?.message?.content;
         }
-        if (!response) response = '';
         return response;
     }
     function combindMessageHistory(summary, messages_, history, askforce) {
@@ -1020,17 +1019,17 @@ import os from 'os';
     }
     async function code_validator(filepath) { // OK
         if (isWindows()) {
-            let pythonCmd = `'${python_interpreter}' -m py_compile '${filepath}'`;
+            let pythonCmd = `${python_interpreter} -m py_compile '${filepath}'`;
             let activateCmd = `${PYTHON_VENV_PATH}\\Scripts\\Activate.ps1`;
             return await new Promise(resolve => {
-                shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; {& ${pythonCmd}}" < nul`, { silent: true }, function (code, stdout, stderr) {
+                shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; ${pythonCmd}" < nul`, { silent: true }, function (code, stdout, stderr) {
                     resolve(stderr.trim())
                 });
             });
         } else {
             let pythonCmd = `'${python_interpreter}' -m py_compile '${filepath}'`;
             return await new Promise(resolve => {
-                shelljs.exec(`"${bash_path}" -c "source \\"${PYTHON_VENV_PATH}/bin/activate\\" && ${pythonCmd}"`, { silent: true }, function (code, stdout, stderr) {
+                shelljs.exec(`${bash_path} -c "source ${PYTHON_VENV_PATH}/bin/activate && ${pythonCmd}"`, { silent: true }, function (code, stdout, stderr) {
                     resolve(stderr.trim())
                 });
             });
@@ -1153,31 +1152,6 @@ import os from 'os';
         await fsPromises.appendFile(rcPath, `\n${cmd}\n`);
         await loadConfig(true);
     }
-    async function turnOnOllamaAndGetModelList() {
-        let count = 10;
-        while (count >= 0) {
-            count--;
-            try {
-                return await axios.get('http://localhost:11434/api/tags');
-            } catch (e) {
-                if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                } else if (e.code === 'ECONNREFUSED') {
-                    let ollamaPath = (await which('ollama')).trim();
-                    if (!ollamaPath) break;
-                    if (isBadStr(ollamaPath)) break;
-                    let ddd;
-                    if (isWindows()) ddd = await execAdv(`& '${ollamaPath}' list`, true, { timeout: 5000 });
-                    else ddd = await execAdv(`"${ollamaPath}" list`, true, { timeout: 5000 });
-                    let { code } = ddd;
-                    if (code) break;
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                } else {
-                    break;
-                }
-            }
-        }
-    }
     async function getVarVal(key) {
         try {
             const rcPath = await getRCPath();
@@ -1187,14 +1161,14 @@ import os from 'os';
             const match = pattern.exec(contents);
             return match ? match[1] : null;
         } catch (err) {
-            // console.error('Error reading the RC file:', err);
+            console.error('Error reading the RC file:', err);
             return null;
         }
     }
     async function installProcess() {
         let setted = false;
-        const pythonPath = await checkPython();
-        if (false) if (!pythonPath) {
+        const pythonPath = python_interpreter;
+        if (!pythonPath) {
             print('* Python is not installed in your system. Python is required to use this app');
             throw new Error('Python is not installed in your system. Python is required to use this app');
         }
@@ -1203,9 +1177,7 @@ import os from 'os';
                 let path = await venvCandidatePath();
                 oraStart('Creating virtual environment for Python');
                 if (disableOra) oraStop();
-                let res;
-                if (isWindows()) res = await execAdv(`& '${pythonPath}' -m venv \\"${path}\\"`); //dt
-                else res = await execAdv(`"${pythonPath}" -m venv "${path}"`)
+                let res = await execAdv(`${pythonPath} -m venv "${path}"`)
                 if (res.code === 0) {
                     await setVarVal('PYTHON_VENV_PATH', path);
                     oraSucceed(chalk.greenBright('Creating virtual environment for Python successed'));
@@ -1263,29 +1235,17 @@ import os from 'os';
             }
         }
         else if (use_llm === 'ollama') {
-            let ollamaPath = (await which('ollama')).trim();
+            const ollamaPath = await which('ollama');
             if (!ollamaPath) {
                 print('* Ollama is not installed in your system. Ollama is required to use this app');
-                await disableVariable('USE_LLM');
-                await loadConfig(true);
-                return await installProcess();
             }
-            else if (isBadStr(ollamaPath)) {
-                print(`* Ollama found located at "${ollamaPath}"`);
-                print("However, the path should not contain ', \".");
-                await disableVariable('USE_LLM');
-                await loadConfig(true);
-                return await installProcess();
-            }
-            if (ollamaPath && !await isKeyInConfig('OLLAMA_MODEL')) {
+            if (!await isKeyInConfig('OLLAMA_MODEL')) {
                 try {
-                    let list = await turnOnOllamaAndGetModelList();
-                    if (!list) {
-                        print('* Ollama server is not ready');
-                        print(`Ollama command located at ${chalk.bold(ollamaPath)}`)
-                        await disableVariable('USE_LLM');
-                        await loadConfig(true);
-                        return await installProcess();
+                    let list;
+                    try {
+                        list = (await axios.get('http://localhost:11434/api/tags'))
+                    } catch {
+                        print('* Ollama server is not ready')
                     }
                     if (list) {
                         try {
@@ -1301,9 +1261,6 @@ import os from 'os';
                             }
                         } catch {
                             print('* You have no model installed in Ollama');
-                            await disableVariable('USE_LLM');
-                            await loadConfig(true);
-                            return await installProcess();
                         }
                     }
                 } catch {
@@ -1313,33 +1270,12 @@ import os from 'os';
         if (setted) {
             print(chalk.gray.bold('─'.repeat(measureColumns(0))));
             print(chalk.greenBright('Configuration has done'));
-            print(`With the ${chalk.white.bold(`aiexe -c`)} command, you can select an AI vendor.`);
-            print(`With the ${chalk.white.bold(`aiexe -m`)} command, you can select models corresponding to the chosen AI vendor.`);
-            print(`The ${chalk.white.bold(`aiexe -r`)} command allows you to reset all settings and the Python virtual environment so you can start from scratch.`);
             print(chalk.green('Enjoy AIEXE'));
-            print(chalk.gray('$') + ' ' + chalk.yellowBright('aiexe "print hello world"'));
+            print(chalk.gray('$') + ' ' + chalk.yellowBright.bold('aiexe "print hello world"'));
             print(chalk.gray.bold('─'.repeat(measureColumns(0))));
         }
         await loadConfig(true);
         return setted;
-    }
-    async function checkPython() {
-        let python_interpreter;
-        try {
-            python_interpreter = await which_python();
-        } catch {
-        }
-        if (!python_interpreter) {
-            console.error('This app requires python interpreter.')
-            process.exit(1)
-            return;
-        } else if (isBadStr(python_interpreter)) {
-            print(`* Python interpreter found located at "${e}"`);
-            print("However, the path should not contain ', \".");
-            process.exit(1)
-            return;
-        }
-        return python_interpreter;
     }
     program
         .name('aiexe')
@@ -1355,43 +1291,32 @@ import os from 'os';
         .option('-b, --debug', 'Debug mode')
         .option('-p, --python <command>', 'Run a command in the Python virtual environment')
         .action(async (prompt, options) => {
-
-            if (!isWindows() && !bash_path) {
-                console.error('This app requires bash to function.')
-                process.exit(1)
-            }
-
             if (options.python) {
-                try {
-                    await checkPython();
-                    let clone = options.python.split(' ');
-                    let commd = clone[0];
-                    clone.shift();
-                    await execInVenv(clone.join(' '), commd);
-                } catch { }
+                let clone = options.python.split(' ');
+                let commd = clone[0];
+                clone.shift();
+                await execInVenv(clone.join(' '), commd);
                 return;
             }
             if (options.destination) {
-                try {
-                    await installProcess();
-                    let forignLanguage = { "en": "foreign language", "fr": "langue étrangère", "ko": "외국어", "ja": "外国語", "vi": "ngoại ngữ", "es": "idioma extranjero", "de": "Fremdsprache", "zh": "外语", "ru": "иностранный язык", "it": "lingua straniera", "pt": "língua estrangeira", "hi": "विदेशी भाषा" };
-                    let hello = { "en": "Hello", "fr": "Bonjour", "ko": "안녕하세요", "ja": "こんにちは", "vi": "Xin chào", "es": "Hola", "de": "Hallo", "zh": "你好", "ru": "Привет", "it": "Ciao", "pt": "Olá", "hi": "नमस्ते", };
-                    let howAreYou = { "en": "How are you?", "fr": "Comment allez-vous ?", "ko": "어떻게 지내세요?", "ja": "お元気ですか？", "vi": "Bạn khỏe không?", "es": "¿Cómo estás?", "de": "Wie geht es Ihnen?", "zh": "你好吗？", "ru": "Как дела?", "it": "Come stai?", "pt": "Como você está?", "hi": "आप कैसे हैं?", };
-                    let whatAreYouDoing = { "en": "What are you doing?", "fr": "Que faites-vous ?", "ko": "무엇을 하고 계세요?", "ja": "何をしていますか？", "vi": "Bạn đang làm gì?", "es": "¿Qué estás haciendo?", "de": "Was machst du?", "zh": "你在做什么？", "ru": "Что ты делаешь?", "it": "Cosa stai facendo?", "pt": "O que você está fazendo?", "hi": "तुम क्या कर रहे हो?", };
-                    const langtable = { "en": "English", "fr": "French", "ko": "Korean", "ja": "Japanese", "vi": "Vietnamese", "es": "Spanish", "de": "German", "zh": "Chinese", "ru": "Russian", "it": "Italian", "pt": "Portuguese", "hi": "Hindi", };
-                    if (!Object.keys(langtable).includes(options.destination.toLowerCase())) {
-                        console.log(`Unsupported destination language: ${options.destination}`);
-                        return;
-                    }
-                    const promptTemplate = {
-                        [`en`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `You are a highly skilled translator for translating #LANGCODE# into English.`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `Translate the following #LANGCODE# text into English.
+                let forignLanguage = { "en": "foreign language", "fr": "langue étrangère", "ko": "외국어", "ja": "外国語", "vi": "ngoại ngữ", "es": "idioma extranjero", "de": "Fremdsprache", "zh": "外语", "ru": "иностранный язык", "it": "lingua straniera", "pt": "língua estrangeira", "hi": "विदेशी भाषा" };
+                let hello = { "en": "Hello", "fr": "Bonjour", "ko": "안녕하세요", "ja": "こんにちは", "vi": "Xin chào", "es": "Hola", "de": "Hallo", "zh": "你好", "ru": "Привет", "it": "Ciao", "pt": "Olá", "hi": "नमस्ते", };
+                let howAreYou = { "en": "How are you?", "fr": "Comment allez-vous ?", "ko": "어떻게 지내세요?", "ja": "お元気ですか？", "vi": "Bạn khỏe không?", "es": "¿Cómo estás?", "de": "Wie geht es Ihnen?", "zh": "你好吗？", "ru": "Как дела?", "it": "Come stai?", "pt": "Como você está?", "hi": "आप कैसे हैं?", };
+                let whatAreYouDoing = { "en": "What are you doing?", "fr": "Que faites-vous ?", "ko": "무엇을 하고 계세요?", "ja": "何をしていますか？", "vi": "Bạn đang làm gì?", "es": "¿Qué estás haciendo?", "de": "Was machst du?", "zh": "你在做什么？", "ru": "Что ты делаешь?", "it": "Cosa stai facendo?", "pt": "O que você está fazendo?", "hi": "तुम क्या कर रहे हो?", };
+                const langtable = { "en": "English", "fr": "French", "ko": "Korean", "ja": "Japanese", "vi": "Vietnamese", "es": "Spanish", "de": "German", "zh": "Chinese", "ru": "Russian", "it": "Italian", "pt": "Portuguese", "hi": "Hindi", };
+                if (!Object.keys(langtable).includes(options.destination.toLowerCase())) {
+                    console.log(`Unsupported destination language: ${options.destination}`);
+                    return;
+                }
+                const promptTemplate = {
+                    [`en`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `You are a highly skilled translator for translating #LANGCODE# into English.`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `Translate the following #LANGCODE# text into English.
                                 #TRANSDATA#
                                 Guidelines
                                 - Please only use characters that make up the alphabet and English.
@@ -1399,30 +1324,30 @@ import os from 'os';
                                 - Use a natural, gentle writing style and appropriate words, expressions, and vocabulary.
                                 - Translate everything as is, without leaving out any content from the original text.
                                 - Do not include any content other than JSON.`
-                            }
-                        ],
-                        [`fr`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `Vous êtes un traducteur très compétent pour traduire #LANGCODE# en français.`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `Veuillez traduire la phrase #LANGCODE# suivante en français.
+                        }
+                    ],
+                    [`fr`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `Vous êtes un traducteur très compétent pour traduire #LANGCODE# en français.`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `Veuillez traduire la phrase #LANGCODE# suivante en français.
                                 #TRANSDATA#
                                 Instructions
                                 - Répondez uniquement en utilisant l'alphabet latin et en français.
                                 - N'incluez aucun contenu autre que JSON.`
-                            }
-                        ],
-                        [`ko`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `당신은 #LANGCODE#를 한국어로 번역하는 고도로 숙련된 번역가입니다.`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `다음의 #LANGCODE#문장을 한국어로 번역하세요.
+                        }
+                    ],
+                    [`ko`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `당신은 #LANGCODE#를 한국어로 번역하는 고도로 숙련된 번역가입니다.`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `다음의 #LANGCODE#문장을 한국어로 번역하세요.
                                 #TRANSDATA#
                                 지침
                                 - 반드시 알파벳, 한글로만 응답하세요.
@@ -1432,16 +1357,16 @@ import os from 'os';
                                 - 존댓말을 사용하세요.
                                 - 원문의 내용은 하나도 빼놓지 말고 모두 그대로 번역하세요.
                                 - JSON이외의 다른 어떤 내용도 절대로 포함하지 마세요.`
-                            }
-                        ],
-                        [`ja`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `あなたは#LANGCODE#を日本語に翻訳する非常に熟練した翻訳者です。`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `次の#LANGCODE#の文章を日本語に翻訳してください。
+                        }
+                    ],
+                    [`ja`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `あなたは#LANGCODE#を日本語に翻訳する非常に熟練した翻訳者です。`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `次の#LANGCODE#の文章を日本語に翻訳してください。
                                 #TRANSDATA#
                                 ガイドライン
                                 - 必ずアルファベット、日本語を構成する文字でのみ対応してください。
@@ -1450,16 +1375,16 @@ import os from 'os';
                                 - 尊敬語を使用してください。
                                 - 原文の内容は一つも欠かさず、すべてそのまま翻訳してください。
                                 - JSON以外の他のコンテンツは絶対に含めないでください。`
-                            }
-                        ],
-                        [`vi`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `Bạn là một dịch giả có tay nghề cao trong việc dịch #LANGCODE# sang tiếng việt.`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `Hãy dịch đoạn văn #LANGCODE# sau đây sang tiếng việt.
+                        }
+                    ],
+                    [`vi`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `Bạn là một dịch giả có tay nghề cao trong việc dịch #LANGCODE# sang tiếng việt.`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `Hãy dịch đoạn văn #LANGCODE# sau đây sang tiếng việt.
                                 #TRANSDATA#
                                 Hướng dẫn
                                 - Vui lòng chỉ trả lời bằng chữ cái latinh và tiếng Việt.
@@ -1468,44 +1393,44 @@ import os from 'os';
                                 - Hãy sử dụng ngôn ngữ tôn trọng.
                                 - Dịch chính xác từng từ trong bản gốc.
                                 - Không được bao gồm bất kỳ nội dung nào khác ngoài JSON.`
-                            }
-                        ],
-                        [`es`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `Eres un traductor altamente cualificado para traducir #LANGCODE# al español.`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `Por favor, traduce la siguiente frase en #LANGCODE# al español.
+                        }
+                    ],
+                    [`es`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `Eres un traductor altamente cualificado para traducir #LANGCODE# al español.`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `Por favor, traduce la siguiente frase en #LANGCODE# al español.
                                 #TRANSDATA#
                                 Instrucciones
                                 - Responde únicamente usando el alfabeto latino y en español.
                                 - No incluyas ningún contenido más que JSON.`
-                            }
-                        ],
-                        [`de`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `Sie sind ein hochqualifizierter Übersetzer, der #LANGCODE# ins deutsch übersetzt.`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `Bitte übersetzen Sie den folgenden #LANGCODE# Satz ins deutsch.
+                        }
+                    ],
+                    [`de`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `Sie sind ein hochqualifizierter Übersetzer, der #LANGCODE# ins deutsch übersetzt.`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `Bitte übersetzen Sie den folgenden #LANGCODE# Satz ins deutsch.
                                 #TRANSDATA#
                                 Anleitung
                                 - Bitte antworten Sie nur mit lateinischen Buchstaben und auf Deutsch.
                                 - Schließen Sie keinen anderen Inhalt als JSON ein.`
-                            }
-                        ],
-                        [`zh`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `您是一位非常熟练的翻译员，擅长将#LANGCODE#翻译成中文。`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `请将以下#LANGCODE#句子翻译成中文。
+                        }
+                    ],
+                    [`zh`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `您是一位非常熟练的翻译员，擅长将#LANGCODE#翻译成中文。`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `请将以下#LANGCODE#句子翻译成中文。
                                 #TRANSDATA#
                                 指南
                                 - 以 JSON 格式提供您的答案。 {"english":"翻译的中文内容"}
@@ -1513,157 +1438,156 @@ import os from 'os';
                                 - 按原样翻译所有内容，不要遗漏原文中的任何内容。 
                                 - 不要包含除 JSON 之外的任何内容。
                                 `
-                            }
-                        ],
-                        [`ru`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `Вы высококвалифицированный переводчик, переводящий #LANGCODE# на русский.`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `Пожалуйста, переведите следующий #LANGCODE# текст на русский.
+                        }
+                    ],
+                    [`ru`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `Вы высококвалифицированный переводчик, переводящий #LANGCODE# на русский.`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `Пожалуйста, переведите следующий #LANGCODE# текст на русский.
                                 #TRANSDATA#
                                 Руководство
                                 - Отвечайте только на латинице и на русском языке.
                                 - Включайте только JSON, не добавляйте ничего другого.`
-                            }
-                        ],
-                        [`it`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `Sei un traduttore altamente qualificato che traduce #LANGCODE# in italiano.`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `Per favore, traduci la seguente frase #LANGCODE# in italiano.
+                        }
+                    ],
+                    [`it`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `Sei un traduttore altamente qualificato che traduce #LANGCODE# in italiano.`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `Per favore, traduci la seguente frase #LANGCODE# in italiano.
                                 #TRANSDATA#
                                 Istruzioni
                                 - Rispondi solo usando l'alfabeto latino e in italiano.
                                 - Non includere altro contenuto oltre al JSON.`
-                            }
-                        ],
-                        [`pt`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `Você é um tradutor altamente qualificado para traduzir #LANGCODE# para o português.`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `Por favor, traduza a seguinte frase #LANGCODE# para o português.
+                        }
+                    ],
+                    [`pt`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `Você é um tradutor altamente qualificado para traduzir #LANGCODE# para o português.`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `Por favor, traduza a seguinte frase #LANGCODE# para o português.
                                 #TRANSDATA#
                                 Instruções
                                 - Responda apenas usando o alfabeto latino e em português.
                                 - Não inclua nenhum outro conteúdo além do JSON.`
-                            }
-                        ],
-                        [`hi`]: [
-                            {
-                                [`role`]: `system`,
-                                [`content`]: `आप एक अत्यधिक कुशल अनुवादक हैं, जो #LANGCODE# से हिंदी में अनुवाद करते हैं।`
-                            },
-                            {
-                                [`role`]: `user`,
-                                [`content`]: `कृपया निम्नलिखित #LANGCODE# वाक्य को हिंदी में अनुवाद करें।
+                        }
+                    ],
+                    [`hi`]: [
+                        {
+                            [`role`]: `system`,
+                            [`content`]: `आप एक अत्यधिक कुशल अनुवादक हैं, जो #LANGCODE# से हिंदी में अनुवाद करते हैं।`
+                        },
+                        {
+                            [`role`]: `user`,
+                            [`content`]: `कृपया निम्नलिखित #LANGCODE# वाक्य को हिंदी में अनुवाद करें।
                                 #TRANSDATA#
                                 निर्देश
                                 - कृपया केवल लैटिन अक्षरों और हिंदी में उत्तर दें।
                                 - कृपया JSON के अलावा कोई अन्य सामग्री शामिल न करें।`
-                            }],
-                    };
-                    Object.keys(promptTemplate).forEach(langCode => {
-                        promptTemplate[langCode].forEach(prompt => prompt['content'] = prompt['content'].split('\n').map(line => line.trim()).join('\n').trim())
-                    });
-                    const mainlg = async (input) => {
-                        if (!input) return;
-                        async function languageDetector(input) {
-                            let counter = 3;
-                            while (counter > 0) {
-                                try {
-                                    let iso = await aiChat([{
-                                        role: 'system', content: [
-                                            `Detect language and response in ISO 639-1`,
-                                            `{`,
-                                            `    "en": "English",`,
-                                            `    "fr": "Français",`,
-                                            `    "ko": "한국어",`,
-                                            `    "ja": "日本語",`,
-                                            `    "vi": "Tiếng Việt",`,
-                                            `    "es": "Español",`,
-                                            `    "de": "Deutsch",`,
-                                            `    "zh": "中文",`,
-                                            `    "ru": "Русский",`,
-                                            `    "it": "Italiano",`,
-                                            `    "pt": "Português",`,
-                                            `    "hi": "हिन्दी"`,
-                                            `}`,
-                                        ].join('\n').trim()
-                                    }, { role: 'user', content: 'I am happy' }, { role: 'assistant', content: 'en' }, { role: 'user', content: '나는 행복하다' }, { role: 'assistant', content: 'ko' }, { role: 'user', content: input.substring(0, 50) },]);
-                                    if (iso?.length !== 2) throw null;
-                                    return iso;
-                                } catch {
-                                    counter--;
-                                }
-                            }
-                        }
-                        let source = options.source;
-                        if (!(USE_LLM !== 'ollama')) {
-                            source = source !== "auto" ? source : await languageDetector(input);
-                            if (source?.length !== 2) return;
-                        } else {
-                            source = source !== "auto" ? source : "";
-                            if (!(source?.length === 2 || source?.length === 0)) return;
-                        }
+                        }],
+                };
+                Object.keys(promptTemplate).forEach(langCode => {
+                    promptTemplate[langCode].forEach(prompt => prompt['content'] = prompt['content'].split('\n').map(line => line.trim()).join('\n').trim())
+                });
+                const mainlg = async (input) => {
+                    if (!input) return;
+                    async function languageDetector(input) {
                         let counter = 3;
                         while (counter > 0) {
                             try {
-
-                                let oiajfd = source ? langtable[source] : forignLanguage[options.destination];
-                                if (!oiajfd) oiajfd = 'forign language';
-                                let sourceCode = oiajfd;
-                                if (sourceCode && promptTemplate[options.destination]) {
-                                    let eres = JSON.stringify(promptTemplate[options.destination]);
-                                    let parsed = JSON.parse(eres.split('#LANGCODE#').join(sourceCode));
-                                    let messages = [];
-                                    messages.push(parsed[0]);
-                                    USE_LLM !== 'ollama' ? null : [hello, whatAreYouDoing, howAreYou].forEach(obj => {
-                                        messages.push({ role: 'user', content: obj[source] });
-                                        messages.push({ role: 'assistant', content: obj[options.destination] });
-                                    })
-                                    messages.push(parsed.at(-1))
-                                    messages[messages.length - 1].content = messages[messages.length - 1].content.split('\n').map(a => a.trim()).join('\n');
-                                    messages[messages.length - 1].content = messages[messages.length - 1].content.split('#TRANSDATA#').join('\n```\n' + input + '\n```\n')
-                                    let result = await aiChat(messages);
-                                    try {
-                                        if (typeof result === 'string') {
-                                            result = result.split('\n').join(' ');
-                                            result = await nakeFence(result, ['json'])
-                                            result = JSON.parse(result);
-                                        }
-                                    } catch (e) {
-                                    }
-                                    let sentence =
-                                        result[langtable[options.destination]] ||
-                                        result[langtable[options.destination].toLowerCase()] ||
-                                        result[langtable[options.destination].toUpperCase()];
-                                    if (sentence) sentence = sentence.trim();
-                                    if (!sentence) throw null;
-                                    print(sentence);
-                                }
-                                break;
-                            } catch (e) {
+                                let iso = await aiChat([{
+                                    role: 'system', content: [
+                                        `Detect language and response in ISO 639-1`,
+                                        `{`,
+                                        `    "en": "English",`,
+                                        `    "fr": "Français",`,
+                                        `    "ko": "한국어",`,
+                                        `    "ja": "日本語",`,
+                                        `    "vi": "Tiếng Việt",`,
+                                        `    "es": "Español",`,
+                                        `    "de": "Deutsch",`,
+                                        `    "zh": "中文",`,
+                                        `    "ru": "Русский",`,
+                                        `    "it": "Italiano",`,
+                                        `    "pt": "Português",`,
+                                        `    "hi": "हिन्दी"`,
+                                        `}`,
+                                    ].join('\n').trim()
+                                }, { role: 'user', content: 'I am happy' }, { role: 'assistant', content: 'en' }, { role: 'user', content: '나는 행복하다' }, { role: 'assistant', content: 'ko' }, { role: 'user', content: input.substring(0, 50) },]);
+                                if (iso?.length !== 2) throw null;
+                                return iso;
+                            } catch {
                                 counter--;
                             }
                         }
                     }
-                    if (!prompt) {
-                        let input = '';
-                        process.stdin.on('data', (chunk) => input += chunk);
-                        process.stdin.on('end', () => mainlg(input));
+                    let source = options.source;
+                    if (!(USE_LLM !== 'ollama')) {
+                        source = source !== "auto" ? source : await languageDetector(input);
+                        if (source?.length !== 2) return;
                     } else {
-                        await mainlg(prompt);
+                        source = source !== "auto" ? source : "";
+                        if (!(source?.length === 2 || source?.length === 0)) return;
                     }
-                } catch { }
+                    let counter = 3;
+                    while (counter > 0) {
+                        try {
+
+                            let oiajfd = source ? langtable[source] : forignLanguage[options.destination];
+                            if (!oiajfd) oiajfd = 'forign language';
+                            let sourceCode = oiajfd;
+                            if (sourceCode && promptTemplate[options.destination]) {
+                                let eres = JSON.stringify(promptTemplate[options.destination]);
+                                let parsed = JSON.parse(eres.split('#LANGCODE#').join(sourceCode));
+                                let messages = [];
+                                messages.push(parsed[0]);
+                                USE_LLM !== 'ollama' ? null : [hello, whatAreYouDoing, howAreYou].forEach(obj => {
+                                    messages.push({ role: 'user', content: obj[source] });
+                                    messages.push({ role: 'assistant', content: obj[options.destination] });
+                                })
+                                messages.push(parsed.at(-1))
+                                messages[messages.length - 1].content = messages[messages.length - 1].content.split('\n').map(a => a.trim()).join('\n');
+                                messages[messages.length - 1].content = messages[messages.length - 1].content.split('#TRANSDATA#').join('\n```\n' + input + '\n```\n')
+                                let result = await aiChat(messages);
+                                try {
+                                    if (typeof result === 'string') {
+                                        result = result.split('\n').join(' ');
+                                        result = await nakeFence(result, ['json'])
+                                        result = JSON.parse(result);
+                                    }
+                                } catch (e) {
+                                }
+                                let sentence =
+                                    result[langtable[options.destination]] ||
+                                    result[langtable[options.destination].toLowerCase()] ||
+                                    result[langtable[options.destination].toUpperCase()];
+                                if (sentence) sentence = sentence.trim();
+                                if (!sentence) throw null;
+                                print(sentence);
+                            }
+                            break;
+                        } catch (e) {
+                            counter--;
+                        }
+                    }
+                }
+                if (!prompt) {
+                    let input = '';
+                    process.stdin.on('data', (chunk) => input += chunk);
+                    process.stdin.on('end', () => mainlg(input));
+                } else {
+                    await mainlg(prompt);
+                }
                 return;
             }
             async function mainApp(prompt) {
