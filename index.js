@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.103';
+    const VERSION = '1.0.104'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -101,14 +101,16 @@ import os from 'os';
     await loadConfig();
     //-----------------------------------------------
     let ollamaPath = (await which('ollama')).trim();
-    if (!ollamaPath) {
-        print('* Ollama is not installed in your system. Ollama is required to use this app');
-        process.exit(1)
-    }
-    else if (ollamaPath.indexOf(' ') > -1) {
-        print(`* Ollama found located at "${ollamaPath}"`);
-        print("However, the path should not contain spaces.");
-        process.exit(1)
+    if ('ollama' === await getVarVal('USE_LLM')) {
+        if (!ollamaPath) {
+            print('* Ollama is not installed in your system. Ollama is required to use this app');
+            process.exit(1)
+        }
+        else if (ollamaPath.indexOf(' ') > -1) {
+            print(`* Ollama found located at "${ollamaPath}"`);
+            print("However, the path should not contain spaces.");
+            process.exit(1)
+        }
     }
 
     const bash_path = !isWindows() ? await which(`bash`) : null;
@@ -1205,7 +1207,7 @@ import os from 'os';
             const match = pattern.exec(contents);
             return match ? match[1] : null;
         } catch (err) {
-            console.error('Error reading the RC file:', err);
+            // console.error('Error reading the RC file:', err);
             return null;
         }
     }
