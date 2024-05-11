@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.120'; // version
+    const VERSION = '1.0.121'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -117,7 +117,7 @@ import os from 'os';
                 ``,
                 `# This code is proposed for mission execution`,
                 `# This code will be run in ${pwd}`,
-                `# This code file is actually located at ${code_saved_path} and you can review the code by opening this file.`,
+                `# This code file is actually located at ${code_saved_path.split('/').join(isWindows() ? '\\' : '/')} and you can review the code by opening this file.`,
                 `# Additional code included at the top of this file ensures smooth operation. For a more detailed review, it is recommended to open the actual file.`,
                 `# Please review the code carefully as it may cause unintended system behavior`,
             ].join('\n').trim()
