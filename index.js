@@ -464,6 +464,7 @@ import os from 'os';
             ].join('\n');
             fs.writeFileSync(scriptPath, python_code_);
             if (only_save) return resolve(scriptPath);
+            oraStart(`Executing code`);
             let child;
             if (isWindows()) {
                 let activateCmd = `${PYTHON_VENV_PATH}\\Scripts\\Activate.ps1`;
@@ -490,14 +491,19 @@ import os from 'os';
             let stderr = [];
             child.stdout.on('data', function (data) {
                 stdout.push(data);
+                let tempMessageForIndicator = oraBackupAndStopCurrent();
                 process.stdout.write(chalk.greenBright(data));
+                oraStart(tempMessageForIndicator);
             });
             child.stderr.on('data', function (data) {
                 if (data.indexOf(`warnings.warn("`) > -1 && data.indexOf(`Warning: `) > -1) return;
                 stderr.push(data);
+                let tempMessageForIndicator = oraBackupAndStopCurrent();
                 process.stderr.write(chalk.red(data));
+                oraStart(tempMessageForIndicator);
             });
             child.on('close', function (code) {
+                oraStop();
                 stdout = stdout.join('');
                 stderr = stderr.join('');
                 resolve({ code, stdout, stderr, python_code });
@@ -1956,7 +1962,6 @@ import os from 'os';
                             }
                             if (index === 3) { break; }
                             print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
-                            print(`Start executing code`);
                             let result = await shell_exec(python_code, false);
                             print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
                             if (result.code === 0 && !result?.stderr?.trim()) {
