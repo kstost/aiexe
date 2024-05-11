@@ -2,4 +2,3 @@ node_modules/
 package-lock.json
 myvenv/
 .DS_Store
-code
