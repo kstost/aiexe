@@ -1,6 +1,6 @@
 # aiexe
 
-Welcome to aiexe, the cutting-edge command-line interface (CLI) tool that integrates powerful AI capabilities directly into your terminal. Designed for developers, tech enthusiasts, and anyone interested in AI-powered automation, aiexe provides an easy-to-use yet robust platform for executing complex tasks with just a few commands. Harness the power of OpenAI's GPT models, Anthropic's Claude models, Ollama's versatile llama3 models, and Gemini models to boost your productivity and enhance your decision-making processes.
+Welcome to aiexe, the cutting-edge command-line interface (CLI) tool that integrates powerful AI capabilities directly into your terminal. Designed for developers, tech enthusiasts, and anyone interested in AI-powered automation, aiexe provides an easy-to-use yet robust platform for executing complex tasks with just a few commands. Harness the power of OpenAI's GPT models, Anthropic's Claude models, Ollama's versatile llama3 models, Gemini models, and GROQ's models to boost your productivity and enhance your decision-making processes.
 
 ## Table of Contents
 1. [Watch Our Demo](#watch-our-demo)
@@ -24,7 +24,7 @@ Watch our demo video on YouTube to get a quick overview of what aiexe can do for
 
 ## Features
 
-- **Seamless Integration**: Easily integrate with OpenAI, Anthropic, Ollama, and Gemini AI models.
+- **Seamless Integration**: Easily integrate with OpenAI, Anthropic, Ollama, Gemini, and GROQ AI models.
 - **Flexible Commands**: Execute a variety of AI-driven tasks directly from your CLI.
 - **Cross-Platform Compatibility**: Works on any system with Python support, including Linux, macOS, and Windows.
 
@@ -198,6 +198,11 @@ This feature ensures that all dependencies are resolved before executing any AI-
 ## Contribute
 
 Contributions are welcome! If you have improvements or bug fixes, feel free to fork the repository and submit a pull request.
+
+We would like to acknowledge the valuable contributions made by:
+- [benant](https://github.com/benant) for suggesting the addition of GROQ as an AI provider and providing ideas for the code-saving feature.
+
+Thank you for your contributions to the development and enhancement of `aiexe`!
 
 ## Support
 
