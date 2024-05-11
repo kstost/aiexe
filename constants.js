@@ -5,7 +5,7 @@ export const limitline = 30; // 대화 기록이 이만큼에 닿게되면 요�
 export const annn = 3; // 요약을 할 때 이만큼에 해당하는 대화건은 요약에서 제외하고 원래 내용대로 유지한다. 만약 3이라고 하면 실제 메시지수는 이의 4배인 12개이다.
 export const responseTokenRatio = 0.3; // 답변에 사용할 토큰 비율이다. 만약 이 값을 0.3으로 설정하면 컨텍스트 제공목적으로 사용하는 토큰을 0.7만큼 사용한다는것이다. 전체 컨텍스트윈도우가 1000이라면 700이 되는것이다.
 export const preprocessing = `preprocessing`;
-export const traceError = true;
+export const traceError = false; // 배포시 false
 export const contextWindows = {
     "mixtral-8x7b-32768": 32768,
     "llama3:latest": 8192,
