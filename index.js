@@ -451,7 +451,7 @@ import os from 'os';
                         `# -----------------------------`,
                         `${warninglist.map(name => `try:\n   import warnings\n   warnings.filterwarnings("ignore", category=${name})\nexcept Exception as e:\n   pass`).join('\n')}`,
                         `${modulelist.map(name => `try:\n   import ${name}\nexcept Exception as e:\n   pass`).join('\n')}`,
-                        `try:\n   sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')\nexcept Exception as e:\n   pass`,
+                        // `try:\n   sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')\nexcept Exception as e:\n   pass`,
                         `# -----------------------------`,
                     ].join('\n'));
                 }
@@ -476,7 +476,7 @@ import os from 'os';
                 const python_interpreter_ = pythonInterpreterPath || '';
                 if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
                 let pythonCmd = `'${python_interpreter_}' -u '${scriptPath}'`;
-                child = shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {& '${activateCmd}'}; & ${pythonCmd}" < nul`, { async: true, silent: true });
+                child = shelljs.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {$env:PYTHONIOENCODING='utf-8'; & '${activateCmd}'}; & ${pythonCmd}" < nul`, { async: true, silent: true });
             } else {
                 const pythonInterpreterPath = [
                     `${PYTHON_VENV_PATH}/bin/python`,
@@ -490,17 +490,15 @@ import os from 'os';
             let stdout = [];
             let stderr = [];
             child.stdout.on('data', function (data) {
+                oraStop();
                 stdout.push(data);
-                let tempMessageForIndicator = oraBackupAndStopCurrent();
                 process.stdout.write(chalk.greenBright(data));
-                oraStart(tempMessageForIndicator);
             });
             child.stderr.on('data', function (data) {
+                oraStop();
                 if (data.indexOf(`warnings.warn("`) > -1 && data.indexOf(`Warning: `) > -1) return;
                 stderr.push(data);
-                let tempMessageForIndicator = oraBackupAndStopCurrent();
                 process.stderr.write(chalk.red(data));
-                oraStart(tempMessageForIndicator);
             });
             child.on('close', function (code) {
                 oraStop();
