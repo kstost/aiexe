@@ -96,6 +96,8 @@ import os from 'os';
     let OLLAMA_PROXY_SERVER = await getEnvRCVar('OLLAMA_PROXY_SERVER');
     let OLLAMA_MODEL = await getEnvRCVar('OLLAMA_MODEL');
     let OPENAI_MODEL = await getEnvRCVar('OPENAI_MODEL');
+    let GROQ_MODEL = await getEnvRCVar('GROQ_MODEL');
+    let GROQ_API_KEY = await getEnvRCVar('GROQ_API_KEY');
     let ANTHROPIC_MODEL = await getEnvRCVar('ANTHROPIC_MODEL');
     const GEMINI_MODEL = 'gemini-pro';
     await loadConfig();
@@ -145,10 +147,12 @@ import os from 'os';
         if (loadForce || !OLLAMA_PROXY_SERVER) OLLAMA_PROXY_SERVER = await getVarVal('OLLAMA_PROXY_SERVER'); // OLLAMA_PROXY_SERVER 값이 정의되어 있지 않은 경우 대체 값을 가져옵니다.
         if (loadForce || !OLLAMA_MODEL) OLLAMA_MODEL = await getVarVal('OLLAMA_MODEL'); // OLLAMA_MODEL 값이 정의되어 있지 않은 경우 대체 값을 가져옵니다.
         if (loadForce || !OPENAI_MODEL) OPENAI_MODEL = await getVarVal('OPENAI_MODEL'); // OPENAI_MODEL 값이 정의되어 있지 않은 경우 대체 값을 가져옵니다.
+        if (loadForce || !GROQ_MODEL) GROQ_MODEL = await getVarVal('GROQ_MODEL'); // GROQ_MODEL 값이 정의되어 있지 않은 경우 대체 값을 가져옵니다.
+        if (loadForce || !GROQ_API_KEY) GROQ_API_KEY = await getVarVal('GROQ_API_KEY'); // GROQ_API_KEY 값이 정의되어 있지 않은 경우 대체 값을 가져옵니다.
         if (loadForce || !ANTHROPIC_MODEL) ANTHROPIC_MODEL = await getVarVal('ANTHROPIC_MODEL'); // ANTHROPIC_MODEL 값이 정의되어 있지 않은 경우 대체 값을 가져옵니다.
     }
     async function disableAllVariable() {
-        const variables = ['GOOGLE_API_KEY', 'OPENAI_API_KEY', 'USE_LLM', 'ANTHROPIC_API_KEY', 'PYTHON_VENV_PATH', 'OLLAMA_PROXY_SERVER', 'OLLAMA_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL'];
+        const variables = ['GOOGLE_API_KEY', 'OPENAI_API_KEY', 'GROQ_API_KEY', 'USE_LLM', 'ANTHROPIC_API_KEY', 'PYTHON_VENV_PATH', 'OLLAMA_PROXY_SERVER', 'OLLAMA_MODEL', 'OPENAI_MODEL', 'GROQ_MODEL', 'ANTHROPIC_MODEL'];
         for (const variableName of variables) {
             await disableVariable(variableName);
         }
@@ -195,6 +199,7 @@ import os from 'os';
     }
     function getModelName() {
         if (USE_LLM === 'openai') return OPENAI_MODEL;
+        if (USE_LLM === 'groq') return GROQ_MODEL;
         if (USE_LLM === 'gemini') return GEMINI_MODEL;
         if (USE_LLM === 'anthropic') return ANTHROPIC_MODEL;
         if (USE_LLM === 'ollama') return OLLAMA_MODEL;
@@ -316,6 +321,16 @@ import os from 'os';
         if (USE_LLM === 'gemini') {
             if (!GOOGLE_API_KEY) {
                 if (display) console.error(chalk.yellowBright(' - The "GOOGLE_API_KEY" environment variable is missing but required.'));
+                doctorOk = false;
+            }
+        }
+        if (USE_LLM === 'groq') {
+            if (!GROQ_MODEL) {
+                if (display) console.error(chalk.yellowBright(" - The 'GROQ_MODEL' environment variable is required and must specify the name of the LLM model."));
+                doctorOk = false;
+            }
+            if (!GROQ_API_KEY) {
+                if (display) console.error(chalk.yellowBright(' - The "GROQ_API_KEY" environment variable is missing but required.'));
                 doctorOk = false;
             }
         }
@@ -571,6 +586,31 @@ import os from 'os';
             }
         }
     }
+    async function groqChat(messages) {
+        let completion;
+        while (true) {
+            let tempMessageForIndicator = oraBackupAndStopCurrent();
+            let indicator = ora((`Requesting ${chalk.bold(GROQ_MODEL)}`)).start()
+            try {
+                completion = await axiosPostWrap('https://api.groq.com/openai/v1/chat/completions', { model: GROQ_MODEL, messages, }, {
+                    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' }
+                });
+                let python_code = completion.data.choices[0].message.content;
+                indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(GROQ_MODEL)} succeeded`));
+                oraStart(tempMessageForIndicator);
+                return python_code;
+            } catch (e) {
+                indicator.fail(chalk.red(`Requesting ${chalk.bold(GROQ_MODEL)} failed`));
+                oraStart(tempMessageForIndicator);
+                if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else {
+                    throw e;
+                    break;
+                }
+            }
+        }
+    }
     async function openaiChat(messages) {
         let completion;
         while (true) {
@@ -601,6 +641,7 @@ import os from 'os';
         if (USE_LLM === 'gemini') return await geminiChat(messages);
         if (USE_LLM === 'anthropic') return await anthropicChat(messages);
         if (USE_LLM === 'ollama') return await ollamaChat(messages);
+        if (USE_LLM === 'groq') return await groqChat(messages);
     }
     async function ollamaChat(messages) {
         let airesponse;
@@ -814,6 +855,22 @@ import os from 'os';
                             break;
                         }
                     }
+                }  else if (USE_LLM === 'groq') {
+                    if (debugMode) debugMode.leave('AIREQ', messages);
+                    try {
+                        python_code = await aiChat(messages);
+                    } catch (e) {
+                        oraFail(chalk.redBright(e.response.data.error.message));
+                        if (e.response.data.error.code === 'invalid_api_key') {
+                            let answer = await ask_prompt_text(`What is your Groq API key for accessing Groq services?`);
+                            await disableVariable('GROQ_API_KEY');
+                            await setVarVal('GROQ_API_KEY', answer);
+                            continue;
+                        } else {
+                            abort = true;
+                            break;
+                        }
+                    }
                 } else if (USE_LLM === 'anthropic') {
                     try {
                         python_code = await aiChat(messages)
@@ -875,6 +932,8 @@ import os from 'os';
             return ANTHROPIC_MODEL;
         } else if (USE_LLM === 'gemini') {
             return GEMINI_MODEL;
+        } else if (USE_LLM === 'groq') {
+            return GROQ_MODEL;
         }
     }
     function nakeFence(airesponsetext, list = ['python3', 'python2', 'python', 'py', '']) {
@@ -1139,11 +1198,13 @@ import os from 'os';
             USE_LLM: typeone,
             GOOGLE_API_KEY: typeone,
             OPENAI_API_KEY: typeone,
+            GROQ_API_KEY: typeone,
             ANTHROPIC_API_KEY: typeone,
             ANTHROPIC_MODEL: typeone,
             OLLAMA_PROXY_SERVER: typeone,
             OLLAMA_MODEL: typeone,
             OPENAI_MODEL: typeone,
+            GROQ_MODEL: typeone,
             PYTHON_VENV_PATH: typeone,
         };
         if (!regChecker[key]) return;
@@ -1219,7 +1280,7 @@ import os from 'os';
         if (!await isKeyInConfig('USE_LLM')) {
             print(chalk.bold('Which LLM vendor do you prefer?'))
             continousNetworkTryCount = 0;
-            let mode = ['OpenAI', 'Anthropic', 'Ollama', 'Gemini'];
+            let mode = ['OpenAI', 'Anthropic', 'Ollama', 'Gemini', 'Groq'];
             let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
             await setVarVal('USE_LLM', mode[index].toLowerCase());
             setted = true;
@@ -1237,6 +1298,21 @@ import os from 'os';
                 let mode = ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
                 let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
                 await setVarVal('OPENAI_MODEL', mode[index]);
+                setted = true;
+            }
+        }
+        else if (use_llm === 'groq') {
+            if (!await isKeyInConfig('GROQ_API_KEY')) {
+                let answer = await ask_prompt_text(`What is your Groq API key for accessing Groq services?`);
+                await setVarVal('GROQ_API_KEY', answer);
+                setted = true;
+            }
+            if (!await isKeyInConfig('GROQ_MODEL')) {
+                print(chalk.bold('Which Groq model do you want to use for your queries?'))
+                continousNetworkTryCount = 0;
+                let mode = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768','gemma-7b-it'];
+                let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
+                await setVarVal('GROQ_MODEL', mode[index]);
                 setted = true;
             }
         }
@@ -1815,10 +1891,10 @@ import os from 'os';
                             print(chalk.gray.bold('─'.repeat(measureColumns(0))));
                             print('Please select an option:')
                             continousNetworkTryCount = 0;
-                            let mode = ['Execute Code', 'Re-Generate Code', 'Modify Prompt', 'Quit'];
+                            let mode = ['Execute Code', 'Re-Generate Code', 'Modify Prompt', 'Quit', 'Save Code & Quit'];
                             let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
-                            if (index === 1) { askforce = ''; continue; }
-                            if (index === 2) {
+                            if (index === 1) { askforce = ''; continue; } //Re-Generate Code
+                            if (index === 2) { // Modify Prompt
                                 print(`Previous prompt: ${chalk.bold(getPrompt())}`);
                                 let request = (await ask_prompt_text(`Modify Prompt`)).trim();
                                 if (request) {
@@ -1834,7 +1910,30 @@ import os from 'os';
                                 askforce = '';
                                 continue;
                             }
-                            if (index === 3) { break; }
+                            if (index === 3) { break; } // Quit
+                            if (index === 4) { // Save Code & Quit
+                                const currentTime = new Date().toISOString().replace(/[-:T]/g, '');// 현재 시간을 문자열로 변환
+                                const fileName = `${currentTime}.py`;// 파일명 생성
+                                const codeFolderPath = path.join(__dirname, './code'); // 폴더 경로 생성
+                                const filePath = path.join(codeFolderPath, fileName);// 파일 경로 생성
+                                const save_code = [`# GENERATED CODE for:`,
+                                    `# ${mission}`,
+                                    ``,
+                                    `${python_code.trim()}`,
+                                    ``,
+                                    `# This cod5e was generated by ${USE_LLM}.`,
+                                    `# This code will be run in ${pwd}`,
+                                    `# Please review the code carefully as it may cause unintended system behavior`,
+                                ].join('\n').trim()
+                                fs.writeFile(filePath, save_code, (err) => {
+                                    if (err) {
+                                        console.error('mainApp err:', err)
+                                    } else {
+                                        print(`${filePath} 파일이 성공적으로 저장되었습니다.`);
+                                    }
+                                });
+                                break;
+                            }
                             print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
                             let result = await shell_exec(python_code)
                             print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
@@ -1910,6 +2009,7 @@ import os from 'os';
                 if (vendor === 'gemini') await disableVariable('USE_LLM');
                 if (vendor === 'ollama') await disableVariable('OLLAMA_MODEL');
                 if (vendor === 'openai') await disableVariable('OPENAI_MODEL');
+                if (vendor === 'groq') await disableVariable('GROQ_MODEL');
                 if (vendor === 'anthropic') await disableVariable('ANTHROPIC_MODEL');
                 await loadConfig(true);
                 try { await installProcess(); } catch { }

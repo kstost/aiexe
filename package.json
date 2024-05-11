@@ -27,6 +27,7 @@
   },
   "contributors": [],
   "scripts": {
+    "start":"node index.js",
     "dev": "",
     "test": ""
   },
