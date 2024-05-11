@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.119'; // version
+    const VERSION = '1.0.120'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -210,6 +210,7 @@ import os from 'os';
     function getContextWindowSize() {
         let mode = getModelName();
         let data = {
+            "mixtral-8x7b-32768": 32768,
             "llama3:latest": 8192,
             "llama3:8b-instruct-q8_0": 8192,
             "llama3:70b": 8192,

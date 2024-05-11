@@ -1,6 +1,6 @@
 {
   "name": "aiexe",
-  "version": "1.0.119",
+  "version": "1.0.120",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -27,7 +27,7 @@
   },
   "contributors": [],
   "scripts": {
-    "start":"node index.js",
+    "start": "node index.js",
     "dev": "",
     "test": ""
   },
