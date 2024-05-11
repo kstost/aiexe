@@ -24,6 +24,7 @@ import { Command } from 'commander';
 import { promises as fsPromises } from 'fs';
 import os from 'os';
 
+let recentReq = null;
 let continousNetworkTryCount = 0;
 export function setContinousNetworkTryCount(v) {
     continousNetworkTryCount = v;
@@ -140,12 +141,32 @@ export async function anthropicChat(messages) {
         }
     }
 }
+
 export async function groqChat(messages) {
+    const timeterm = 5000;
     let completion;
     const GROQ_MODEL = await getVarVal('GROQ_MODEL');
     const GROQ_API_KEY = await getVarVal('GROQ_API_KEY');
     while (true) {
         let tempMessageForIndicator = oraBackupAndStopCurrent();
+        let secondpre;
+        while (true) {
+            if (recentReq === null) {
+                recentReq = new Date();
+                break;
+            }
+            if (new Date() - recentReq > timeterm) {
+                recentReq = new Date();
+                break;
+            }
+            let leftsec = (Math.round((timeterm - (new Date() - recentReq)) / 1000));
+            if (leftsec !== secondpre) {
+                oraStart(`${leftsec} seconds left for next request`);
+                secondpre = leftsec;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        oraStop();
         let indicator = ora((`Requesting ${chalk.bold(GROQ_MODEL)}`)).start()
         try {
             completion = await axiosPostWrap('https://api.groq.com/openai/v1/chat/completions', { model: GROQ_MODEL, messages, }, {
