@@ -24,7 +24,6 @@ import { Command } from 'commander';
 import { promises as fsPromises } from 'fs';
 import os from 'os';
 
-let recentReq = null;
 let continousNetworkTryCount = 0;
 export function setContinousNetworkTryCount(v) {
     continousNetworkTryCount = v;
@@ -142,30 +141,33 @@ export async function anthropicChat(messages) {
     }
 }
 
+
+async function waitTimeFor(timeterm_ms) {
+    let recentReq = new Date();
+    let secondpre;
+    while (true) {
+        if (new Date() - recentReq > timeterm_ms) break;
+        let leftsec = (Math.round((timeterm_ms - (new Date() - recentReq)) / 1000));
+        if (leftsec !== secondpre) {
+            oraStart(`${leftsec} seconds left for next request`);
+            secondpre = leftsec;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    oraStop();
+}
+let firstGroqReg = true;
 export async function groqChat(messages) {
-    const timeterm = 5000;
     let completion;
     const GROQ_MODEL = await getVarVal('GROQ_MODEL');
     const GROQ_API_KEY = await getVarVal('GROQ_API_KEY');
+    let alreadWaited = false;
     while (true) {
+        let timeterm = firstGroqReg ? 0 : 3000 * 1;
+        firstGroqReg = false;
         let tempMessageForIndicator = oraBackupAndStopCurrent();
-        let secondpre;
-        while (true) {
-            if (recentReq === null) {
-                recentReq = new Date();
-                break;
-            }
-            if (new Date() - recentReq > timeterm) {
-                recentReq = new Date();
-                break;
-            }
-            let leftsec = (Math.round((timeterm - (new Date() - recentReq)) / 1000));
-            if (leftsec !== secondpre) {
-                oraStart(`${leftsec} seconds left for next request`);
-                secondpre = leftsec;
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        if (!alreadWaited) await waitTimeFor(timeterm);
+        alreadWaited = false;
         oraStop();
         let indicator = ora((`Requesting ${chalk.bold(GROQ_MODEL)}`)).start()
         try {
@@ -181,28 +183,28 @@ export async function groqChat(messages) {
             indicator.fail(chalk.red(`Requesting ${chalk.bold(GROQ_MODEL)} failed`));
             oraStart(tempMessageForIndicator);
             if (e?.response?.data?.error?.code === 'rate_limit_exceeded') {
-                let numstr = e.response.data.error.message.split('Please try again in ')[1].split('. ')[0];
-                function extractParts(str) {
-                    const numericPart = str.match(/[\d.]+/g).join('');
-                    const alphabetPart = str.match(/[a-zA-Z]+/g).join('');
-                    return { numeric: Number(numericPart), alphabet: alphabetPart };
+
+                function extractTime(str) {
+                    let totalMilliseconds = 0;
+                    let milliseconds = str.match(/(\d+)ms/);
+                    if (milliseconds) {
+                        totalMilliseconds += parseInt(milliseconds[1], 10);
+                    }
+                    let minutes = str.match(/(\d+)m(?!s)/);
+                    if (minutes) {
+                        totalMilliseconds += parseInt(minutes[1], 10) * 60000;
+                    }
+                    let seconds = str.match(/(\d+\.?\d*)s/);
+                    if (seconds) {
+                        totalMilliseconds += parseFloat(seconds[1]) * 1000;
+                    }
+                    return totalMilliseconds;
                 }
-                let waitTime;
-                const parts = extractParts(numstr);
-                if (parts.alphabet === 's') {
-                    waitTime = parts.numeric * 1.1 * 1000;
-                } else if (parts.alphabet === 'ms') {
-                    waitTime = parts.numeric * 1.1;
-                } else if (parts.alphabet === 'm') {
-                    waitTime = parts.numeric * 1.1 * 1000 * 60;
-                } else if (parts.alphabet === 'h') {
-                    waitTime = parts.numeric * 1.1 * 1000 * 60 * 60;
-                } else {
-                    throw e;
-                    break;
-                }
-                print(chalk.red(`You made many requests quickly, which overwhelmed the AI.\nIt will take ${numstr} break and try again.`));
-                await new Promise(resolve => setTimeout(resolve, waitTime));
+                let waitTime = Math.ceil((extractTime(e.response.data.error.message) / 1000) * 1.1)
+                // print(chalk.red(`You made many requests quickly, which overwhelmed the AI.\nIt will take ${waitTime} seconds break and try again.`));
+                print(chalk.red(e.response.data.error.message));
+                await waitTimeFor(waitTime * 1000);
+                alreadWaited = true;
                 continue;
             }
             else if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
