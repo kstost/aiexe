@@ -73,7 +73,7 @@ import os from 'os';
     const program = new Command();
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const VERSION = '1.0.116'; // version
+    const VERSION = '1.0.118'; // version
     function splitStringIntoTokens(inputString) {
         return inputString.split(/(\w+|\S)/g).filter(token => token.trim() !== '');
     }
@@ -108,7 +108,7 @@ import os from 'os';
         python_interpreter = await which_python();
     } catch { }
     const pwd = process.cwd();
-    function codeDisplay(mission, python_code) {
+    function codeDisplay(mission, python_code, code_saved_path) {
         return (highlight(
             [`# GENERATED CODE for:`,
                 `# ${mission}`,
@@ -117,6 +117,8 @@ import os from 'os';
                 ``,
                 `# This code is proposed for mission execution`,
                 `# This code will be run in ${pwd}`,
+                `# This code file is actually located at ${code_saved_path} and you can review the code by opening this file.`,
+                `# Additional code included at the top of this file ensures smooth operation. For a more detailed review, it is recommended to open the actual file.`,
                 `# Please review the code carefully as it may cause unintended system behavior`,
             ].join('\n').trim()
             , {
@@ -437,18 +439,31 @@ import os from 'os';
         return response;
     }
 
-    async function shell_exec(python_code) {
-        let response = await new Promise(resolve => {
-            let scriptPath = `${PYTHON_VENV_PATH}/._code.py`;
-            let warninglist = ["DeprecationWarning", "UserWarning", "FutureWarning", "ImportWarning", "RuntimeWarning", "SyntaxWarning", "PendingDeprecationWarning", "ResourceWarning", "InsecureRequestWarning", "InsecurePlatformWarning"];
-            let modulelist = ["abc", "argparse", "array", "ast", "asyncio", "atexit", "base64", "bdb", "binascii", "bisect", "builtins", "bz2", "calendar", "cmath", "cmd", "code", "codecs", "codeop", "collections", "colorsys", "compileall", "concurrent", "configparser", "contextlib", "contextvars", "copy", "copyreg", "cProfile", "csv", "ctypes", "dataclasses", "datetime", "dbm", "decimal", "difflib", "dis", "doctest", "email", "encodings", "ensurepip", "enum", "errno", "faulthandler", "filecmp", "fileinput", "fnmatch", "fractions", "ftplib", "functools", "gc", "getopt", "getpass", "gettext", "glob", "graphlib", "gzip", "hashlib", "heapq", "hmac", "html", "http", "imaplib", "importlib", "inspect", "io", "ipaddress", "itertools", "json", "keyword", "linecache", "locale", "logging", "lzma", "mailbox", "mailcap", "marshal", "math", "mimetypes", "mmap", "modulefinder", "multiprocessing", "netrc", "nntplib", "numbers", "operator", "optparse", "os", "pathlib", "pdb", "pickle", "pickletools", "pkgutil", "platform", "plistlib", "poplib", "posixpath", "pprint", "profile", "pstats", "pty", "pwd", "py_compile", "pyclbr", "pydoc", "queue", "quopri", "random", "re", "reprlib", "rlcompleter", "runpy", "sched", "secrets", "select", "selectors", "shelve", "shlex", "shutil", "signal", "site", "smtpd", "smtplib", "sndhdr", "socket", "socketserver", "sqlite3", "ssl", "stat", "statistics", "string", "stringprep", "struct", "subprocess", "sunau", "symtable", "sys", "sysconfig", "syslog", "tabnanny", "tarfile", "telnetlib", "tempfile", "test", "textwrap", "threading", "time", "timeit", "token", "tokenize", "trace", "traceback", "tracemalloc", "tty", "turtle", "types", "typing", "unicodedata", "unittest", "urllib", "uu", "uuid", "venv", "warnings", "wave", "weakref", "webbrowser", "wsgiref", "xdrlib", "xml", "xmlrpc", "zipapp", "zipfile", "zipimport", "zlib", "zoneinfo", "numpy", "pandas", "matplotlib", "seaborn", "scipy", "tensorflow", "keras", "torch", "statsmodels", "xgboost", "lightgbm", "gensim", "nltk", "pillow", "requests", "beautifulsoup4", "mahotas", "simplecv", "pycairo", "pyglet", "openpyxl", "xlrd", "xlwt", "pyexcel", "PyPDF2", "reportlab", "moviepy", "vidgear", "imutils", "pytube", "pafy"];
+    async function shell_exec(python_code, only_save = false) {
+        let response = await new Promise(async resolve => {
+            {
+                let importsScriptPath = `${PYTHON_VENV_PATH}/preprocessing.py`;
+                if (!await isItem(importsScriptPath)) {
+                    let warninglist = ["DeprecationWarning", "UserWarning", "FutureWarning", "ImportWarning", "RuntimeWarning", "SyntaxWarning", "PendingDeprecationWarning", "ResourceWarning", "InsecureRequestWarning", "InsecurePlatformWarning"];
+                    let modulelist = ["abc", "argparse", "array", "ast", "asyncio", "atexit", "base64", "bdb", "binascii", "bisect", "builtins", "bz2", "calendar", "cmath", "cmd", "code", "codecs", "codeop", "collections", "colorsys", "compileall", "concurrent", "configparser", "contextlib", "contextvars", "copy", "copyreg", "cProfile", "csv", "ctypes", "dataclasses", "datetime", "dbm", "decimal", "difflib", "dis", "doctest", "email", "encodings", "ensurepip", "enum", "errno", "faulthandler", "filecmp", "fileinput", "fnmatch", "fractions", "ftplib", "functools", "gc", "getopt", "getpass", "gettext", "glob", "graphlib", "gzip", "hashlib", "heapq", "hmac", "html", "http", "imaplib", "importlib", "inspect", "io", "ipaddress", "itertools", "json", "keyword", "linecache", "locale", "logging", "lzma", "mailbox", "mailcap", "marshal", "math", "mimetypes", "mmap", "modulefinder", "multiprocessing", "netrc", "nntplib", "numbers", "operator", "optparse", "os", "pathlib", "pdb", "pickle", "pickletools", "pkgutil", "platform", "plistlib", "poplib", "posixpath", "pprint", "profile", "pstats", "pty", "pwd", "py_compile", "pyclbr", "pydoc", "queue", "quopri", "random", "re", "reprlib", "rlcompleter", "runpy", "sched", "secrets", "select", "selectors", "shelve", "shlex", "shutil", "signal", "site", "smtpd", "smtplib", "sndhdr", "socket", "socketserver", "sqlite3", "ssl", "stat", "statistics", "string", "stringprep", "struct", "subprocess", "sunau", "symtable", "sys", "sysconfig", "syslog", "tabnanny", "tarfile", "telnetlib", "tempfile", "test", "textwrap", "threading", "time", "timeit", "token", "tokenize", "trace", "traceback", "tracemalloc", "tty", "turtle", "types", "typing", "unicodedata", "unittest", "urllib", "uu", "uuid", "venv", "warnings", "wave", "weakref", "webbrowser", "wsgiref", "xdrlib", "xml", "xmlrpc", "zipapp", "zipfile", "zipimport", "zlib", "zoneinfo", "numpy", "pandas", "matplotlib", "seaborn", "scipy", "tensorflow", "keras", "torch", "statsmodels", "xgboost", "lightgbm", "gensim", "nltk", "pillow", "requests", "beautifulsoup4", "mahotas", "simplecv", "pycairo", "pyglet", "openpyxl", "xlrd", "xlwt", "pyexcel", "PyPDF2", "reportlab", "moviepy", "vidgear", "imutils", "pytube", "pafy"];
+                    fs.writeFileSync(importsScriptPath, [
+                        `# Please understand that the code is quite long. AI often omits necessary modules when executing code. To address this, I have prepared code at the top that imports commonly used module packages. The main logic of the code created by the AI can be found at the bottom of this code.`,
+                        `# -----------------------------`,
+                        `${warninglist.map(name => `try:\n   import warnings\n   warnings.filterwarnings("ignore", category=${name})\nexcept Exception as e:\n   pass`).join('\n')}`,
+                        `${modulelist.map(name => `try:\n   import ${name}\nexcept Exception as e:\n   pass`).join('\n')}`,
+                        `try:\n   sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')\nexcept Exception as e:\n   pass`,
+                        `# -----------------------------`,
+                    ].join('\n'));
+                }
+            }
+            let scriptPath = `${PYTHON_VENV_PATH}/${only_save ? getCurrentDateTime() : '._code'}.py`;
             let python_code_ = [
-                `${warninglist.map(name => `try:\n   import warnings\n   warnings.filterwarnings("ignore", category=${name})\nexcept Exception as e:\n   pass`).join('\n')}`,
-                `${modulelist.map(name => `try:\n   import ${name}\nexcept Exception as e:\n   pass`).join('\n')}`,
-                `try:\n   sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')\nexcept Exception as e:\n   pass`,
+                `try:\n   from preprocessing import *\nexcept Exception:\n   pass`,
+                `# -----------------------------`,
                 `${python_code}`
             ].join('\n');
             fs.writeFileSync(scriptPath, python_code_);
+            if (only_save) return resolve(scriptPath);
             let child;
             if (isWindows()) {
                 let activateCmd = `${PYTHON_VENV_PATH}\\Scripts\\Activate.ps1`;
@@ -602,7 +617,32 @@ import os from 'os';
             } catch (e) {
                 indicator.fail(chalk.red(`Requesting ${chalk.bold(GROQ_MODEL)} failed`));
                 oraStart(tempMessageForIndicator);
-                if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
+                if (e?.response?.data?.error?.code === 'rate_limit_exceeded') {
+                    let numstr = e.response.data.error.message.split('Please try again in ')[1].split('. ')[0];
+                    function extractParts(str) {
+                        const numericPart = str.match(/[\d.]+/g).join('');
+                        const alphabetPart = str.match(/[a-zA-Z]+/g).join('');
+                        return { numeric: Number(numericPart), alphabet: alphabetPart };
+                    }
+                    let waitTime;
+                    const parts = extractParts(numstr);
+                    if (parts.alphabet === 's') {
+                        waitTime = parts.numeric * 1.1 * 1000;
+                    } else if (parts.alphabet === 'ms') {
+                        waitTime = parts.numeric * 1.1;
+                    } else if (parts.alphabet === 'm') {
+                        waitTime = parts.numeric * 1.1 * 1000 * 60;
+                    } else if (parts.alphabet === 'h') {
+                        waitTime = parts.numeric * 1.1 * 1000 * 60 * 60;
+                    } else {
+                        throw e;
+                        break;
+                    }
+                    print(chalk.red(`You made many requests quickly, which overwhelmed the AI.\nIt will take ${numstr} break and try again.`));
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                    continue;
+                }
+                else if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 } else {
                     throw e;
@@ -855,12 +895,12 @@ import os from 'os';
                             break;
                         }
                     }
-                }  else if (USE_LLM === 'groq') {
+                } else if (USE_LLM === 'groq') {
                     if (debugMode) debugMode.leave('AIREQ', messages);
                     try {
                         python_code = await aiChat(messages);
                     } catch (e) {
-                        oraFail(chalk.redBright(e.response.data.error.message));
+                        oraFail(chalk.redBright(e?.response?.data?.error?.message));
                         if (e.response.data.error.code === 'invalid_api_key') {
                             let answer = await ask_prompt_text(`What is your Groq API key for accessing Groq services?`);
                             await disableVariable('GROQ_API_KEY');
@@ -1104,8 +1144,7 @@ import os from 'os';
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
         const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
-
-        return `${year}-${month}-${day}T${hours}-${minutes}-${seconds}-${milliseconds}`;
+        return `${year}${month}${day}_${hours}${minutes}${seconds}_${milliseconds}`;
     }
     async function getRCPath() {
         if (isWindows()) {
@@ -1141,6 +1180,14 @@ import os from 'os';
             return filePath;
         }
     }
+    async function isItem(itemPath) {
+        try {
+            await fsPromises.access(itemPath, fsPromises.constants.F_OK);
+            return true;
+        } catch { }
+        return false;
+    }
+
     async function readRCDaata() {
         let currentContents;
         try {
@@ -1310,7 +1357,7 @@ import os from 'os';
             if (!await isKeyInConfig('GROQ_MODEL')) {
                 print(chalk.bold('Which Groq model do you want to use for your queries?'))
                 continousNetworkTryCount = 0;
-                let mode = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768','gemma-7b-it'];
+                let mode = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it'];
                 let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
                 await setVarVal('GROQ_MODEL', mode[index]);
                 setted = true;
@@ -1744,10 +1791,6 @@ import os from 'os';
             }
             async function mainApp(prompt) {
                 let debugMode = (await isDebugMode() || (options.debug)) ? {} : null;
-                async function leave(mode, data) {
-                    if (!debugMode) return;
-                    await debugMode.leave(mode, data);
-                }
                 if (debugMode) {
                     try {
                         const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
@@ -1887,14 +1930,15 @@ import os from 'os';
 
                         } else {
                             print(chalk.gray.bold('─'.repeat(measureColumns(0))));
-                            print(codeDisplay(mission, python_code))
+                            let code_saved_path = await shell_exec(python_code, true)
+                            print(codeDisplay(mission, python_code, code_saved_path))
                             print(chalk.gray.bold('─'.repeat(measureColumns(0))));
                             print('Please select an option:')
                             continousNetworkTryCount = 0;
-                            let mode = ['Execute Code', 'Re-Generate Code', 'Modify Prompt', 'Quit', 'Save Code & Quit'];
+                            let mode = ['Execute Code', 'Re-Generate Code', 'Modify Prompt', 'Quit'];
                             let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
-                            if (index === 1) { askforce = ''; continue; } //Re-Generate Code
-                            if (index === 2) { // Modify Prompt
+                            if (index === 1) { askforce = ''; continue; }
+                            if (index === 2) {
                                 print(`Previous prompt: ${chalk.bold(getPrompt())}`);
                                 let request = (await ask_prompt_text(`Modify Prompt`)).trim();
                                 if (request) {
@@ -1910,32 +1954,10 @@ import os from 'os';
                                 askforce = '';
                                 continue;
                             }
-                            if (index === 3) { break; } // Quit
-                            if (index === 4) { // Save Code & Quit
-                                const currentTime = new Date().toISOString().replace(/[-:T]/g, '');// 현재 시간을 문자열로 변환
-                                const fileName = `${currentTime}.py`;// 파일명 생성
-                                const codeFolderPath = path.join(__dirname, './code'); // 폴더 경로 생성
-                                const filePath = path.join(codeFolderPath, fileName);// 파일 경로 생성
-                                const save_code = [`# GENERATED CODE for:`,
-                                    `# ${mission}`,
-                                    ``,
-                                    `${python_code.trim()}`,
-                                    ``,
-                                    `# This cod5e was generated by ${USE_LLM}.`,
-                                    `# This code will be run in ${pwd}`,
-                                    `# Please review the code carefully as it may cause unintended system behavior`,
-                                ].join('\n').trim()
-                                fs.writeFile(filePath, save_code, (err) => {
-                                    if (err) {
-                                        console.error('mainApp err:', err)
-                                    } else {
-                                        print(`${filePath} 파일이 성공적으로 저장되었습니다.`);
-                                    }
-                                });
-                                break;
-                            }
+                            if (index === 3) { break; }
                             print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
-                            let result = await shell_exec(python_code)
+                            print(`Start executing code`);
+                            let result = await shell_exec(python_code, false);
                             print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
                             if (result.code === 0 && !result?.stderr?.trim()) {
                                 print(chalk.greenBright.bold(`✔ The code ran successfully`))
