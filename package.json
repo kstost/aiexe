@@ -1,6 +1,6 @@
 {
   "name": "aiexe",
-  "version": "1.0.123",
+  "version": "1.0.124",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -41,6 +41,7 @@
     "commander": "^12.0.0",
     "express": "^4.19.2",
     "figlet": "^1.7.0",
+    "inquirer": "^9.2.20",
     "ora": "^8.0.1",
     "readline-sync": "^1.4.10",
     "shelljs": "^0.8.5"

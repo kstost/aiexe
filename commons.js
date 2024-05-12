@@ -23,8 +23,25 @@ import { fileURLToPath } from 'url';
 import { Command } from 'commander';
 import { promises as fsPromises } from 'fs';
 import os from 'os';
+import inquirer from 'inquirer';
 
-
+export async function promptChoices(choices, message) {
+    const indexedChoices = choices.map((choice, index) => `${index + 1} - ${choice}`);
+    const answers = await inquirer.prompt([
+        {
+            name: 'choice',
+            type: 'list',
+            message,
+            choices: indexedChoices,
+            filter: (value) => {
+                const numberPattern = /\d+/;
+                const match = value.match(numberPattern);
+                return choices[parseInt(match[0], 10) - 1];
+            }
+        }
+    ]);
+    return choices.indexOf(answers.choice);
+}
 export function printError(e) {
     if (!traceError) return;
     print(e);

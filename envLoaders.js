@@ -3,7 +3,7 @@
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
 import { createVENV, doctorCheck, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
@@ -31,7 +31,7 @@ export async function installProcess() {
         print(chalk.bold('Which LLM vendor do you prefer?'))
         setContinousNetworkTryCount(0);
         let mode = ['OpenAI', 'Anthropic', 'Ollama', 'Gemini', 'Groq'];
-        let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
+        let index = await promptChoices(mode, `Enter your choice`, { cancel: false });
         await setVarVal('USE_LLM', mode[index].toLowerCase());
         setted = true;
     }
@@ -46,7 +46,7 @@ export async function installProcess() {
             print(chalk.bold('Which OpenAI model do you want to use for your queries?'))
             setContinousNetworkTryCount(0);
             let mode = ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
-            let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
+            let index = await promptChoices(mode, `Enter your choice`, { cancel: false });
             await setVarVal('OPENAI_MODEL', mode[index]);
             setted = true;
         }
@@ -61,7 +61,7 @@ export async function installProcess() {
             print(chalk.bold('Which Groq model do you want to use for your queries?'))
             setContinousNetworkTryCount(0);
             let mode = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it'];
-            let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
+            let index = await promptChoices(mode, `Enter your choice`, { cancel: false });
             await setVarVal('GROQ_MODEL', mode[index]);
             setted = true;
         }
@@ -76,7 +76,7 @@ export async function installProcess() {
             print(chalk.bold('Which Anthropic model do you want to use for your queries?'))
             setContinousNetworkTryCount(0);
             let mode = ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'];
-            let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
+            let index = await promptChoices(mode, `Enter your choice`, { cancel: false });
             await setVarVal('ANTHROPIC_MODEL', mode[index]);
             setted = true;
         }
@@ -119,7 +119,7 @@ export async function installProcess() {
                             print(chalk.bold('Which Ollama model do you want to use for your queries?'))
                             let mode = list.data.models.map(a => a.name);
                             setContinousNetworkTryCount(0);
-                            let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
+                            let index = await promptChoices(mode, `Enter your choice`, { cancel: false });
                             await setVarVal('OLLAMA_MODEL', mode[index]);
                             setted = true;
                         } else {

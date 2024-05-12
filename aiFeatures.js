@@ -2,7 +2,7 @@
 /* eslint-disable no-unused-vars, no-unreachable, no-constant-condition, no-constant-binary-expression */
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
 import { createVENV, doctorCheck, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
@@ -427,7 +427,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 print('Please select an option:')
                 setContinousNetworkTryCount(0);
                 let mode = ['Create of a revised code', 'Modify Prompt', 'Quit'];
-                let index = readlineSync.keyInSelect(mode, `Enter your choice`, { cancel: false });
+                let index = await promptChoices(mode, `Enter your choice`, { cancel: false });
                 if (index === 0) {
                     askforce = '';
                     continue;
