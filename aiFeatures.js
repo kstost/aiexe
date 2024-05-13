@@ -32,15 +32,15 @@ export function getContinousNetworkTryCount() {
     return continousNetworkTryCount;
 }
 
-export async function aiChat(messages) {
+export async function aiChat(messages, parameters) {
     const USE_LLM = await getVarVal('USE_LLM');
-    if (USE_LLM === 'openai') return await openaiChat(messages);
-    if (USE_LLM === 'gemini') return await geminiChat(messages);
-    if (USE_LLM === 'anthropic') return await anthropicChat(messages);
-    if (USE_LLM === 'ollama') return await ollamaChat(messages);
-    if (USE_LLM === 'groq') return await groqChat(messages);
+    if (USE_LLM === 'openai') return await openaiChat(messages, parameters);
+    if (USE_LLM === 'gemini') return await geminiChat(messages, parameters);
+    if (USE_LLM === 'anthropic') return await anthropicChat(messages, parameters);
+    if (USE_LLM === 'ollama') return await ollamaChat(messages, parameters);
+    if (USE_LLM === 'groq') return await groqChat(messages, parameters);
 }
-export async function geminiChat(messages) {
+export async function geminiChat(messages, parameters = { temperature: 0 }) {
     const debugMode = false;
     while (true) {
         let tempMessageForIndicator = oraBackupAndStopCurrent();
@@ -73,6 +73,7 @@ export async function geminiChat(messages) {
                 contents: clonedMessage
             });
             let response = await axiosPostWrap(`https://generativelanguage.googleapis.com/v1beta/models/${'gemini-pro'}:generateContent?key=${await getVarVal('GOOGLE_API_KEY')}`, {
+                generationConfig: parameters,
                 contents: clonedMessage
             }, { headers: { 'content-type': 'application/json' } });
             try {
@@ -101,7 +102,7 @@ export async function geminiChat(messages) {
         }
     }
 }
-export async function anthropicChat(messages) {
+export async function anthropicChat(messages, parameters = { temperature: 0 }) {
     const ANTHROPIC_MODEL = await getVarVal('ANTHROPIC_MODEL');
     while (true) {
         let tempMessageForIndicator = oraBackupAndStopCurrent();
@@ -111,6 +112,7 @@ export async function anthropicChat(messages) {
             let system = clonedMessage[0].content;
             clonedMessage.shift();
             let response = await axiosPostWrap('https://api.anthropic.com/v1/messages', {
+                ...parameters,
                 model: ANTHROPIC_MODEL,
                 max_tokens: 1024,
                 system,
@@ -157,7 +159,7 @@ async function waitTimeFor(timeterm_ms) {
     oraStop();
 }
 let firstGroqReg = true;
-export async function groqChat(messages) {
+export async function groqChat(messages, parameters = { temperature: 0 }) {
     let completion;
     const GROQ_MODEL = await getVarVal('GROQ_MODEL');
     const GROQ_API_KEY = await getVarVal('GROQ_API_KEY');
@@ -171,7 +173,7 @@ export async function groqChat(messages) {
         oraStop();
         let indicator = ora((`Requesting ${chalk.bold(GROQ_MODEL)}`)).start()
         try {
-            completion = await axiosPostWrap('https://api.groq.com/openai/v1/chat/completions', { model: GROQ_MODEL, messages, }, {
+            completion = await axiosPostWrap('https://api.groq.com/openai/v1/chat/completions', { ...parameters, model: GROQ_MODEL, messages, }, {
                 headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' }
             });
             let python_code = completion.data.choices[0].message.content;
@@ -216,14 +218,14 @@ export async function groqChat(messages) {
         }
     }
 }
-export async function openaiChat(messages) {
+export async function openaiChat(messages, parameters = { temperature: 0 }) {
     let completion;
     const OPENAI_MODEL = await getVarVal('OPENAI_MODEL');
     while (true) {
         let tempMessageForIndicator = oraBackupAndStopCurrent();
         let indicator = ora((`Requesting ${chalk.bold(OPENAI_MODEL)}`)).start()
         try {
-            completion = await axiosPostWrap('https://api.openai.com/v1/chat/completions', { model: OPENAI_MODEL, messages, }, {
+            completion = await axiosPostWrap('https://api.openai.com/v1/chat/completions', { ...parameters, model: OPENAI_MODEL, messages }, {
                 headers: { 'Authorization': `Bearer ${await getVarVal('OPENAI_API_KEY')}`, 'Content-Type': 'application/json' }
             });
             let python_code = completion.data.choices[0].message.content;
@@ -243,12 +245,10 @@ export async function openaiChat(messages) {
         }
     }
 }
-export async function ollamaChat(messages) {
+export async function ollamaChat(messages, parameters = { temperature: 0 }) {
     let airesponse;
     let response;
-    let options = {
-        temperature: 0
-    }
+    let options = parameters;
     const OLLAMA_PROXY_SERVER = await getVarVal('OLLAMA_PROXY_SERVER');
     const OLLAMA_MODEL = await getVarVal('OLLAMA_MODEL');
     if (OLLAMA_PROXY_SERVER) {
@@ -390,6 +390,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
         while (true) {
             let messages = combindMessageHistory(summary, messages_, history, askforce);
             oraStop();
+            // re-generate                      | 
             // run_code_causes_error            | 히스토리의 마지막은 user
             // nothing_responsed                | 히스토리의 마지막은 user
             // responsed_code_is_invalid_syntax | 히스토리 비었음
@@ -400,6 +401,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 responsed_opinion 코드가아닌그냥말
                 nothing_responsed 이전 요청내용
             */
+            const reGenerateMode = askforce === 're-generate';
             if (askforce === 'responsed_code_is_invalid_syntax') {
                 let request = (await ask_prompt_text(`What can I do for you?`)).trim(); // 이 물음에서 진행했을때 `Nothing responsed`의 상황이 만들어진다.
                 if (request) {
@@ -470,12 +472,13 @@ export async function code_generator(summary, messages_ = [], history = [], askf
             }
             oraStart(`Generating code with ${chalk.bold(await getModelName())}`);
             if (disableOra) oraStop();
+            const parameters = { temperature: reGenerateMode ? 0.7 : 0 };
             if (USE_LLM === 'ollama') {
-                python_code = await aiChat(messages);
+                python_code = await aiChat(messages, parameters);
             } else if (USE_LLM === 'openai') {
                 if (debugMode) debugMode.leave('AIREQ', messages);
                 try {
-                    python_code = await aiChat(messages);
+                    python_code = await aiChat(messages, parameters);
                 } catch (e) {
                     printError(e);
                     oraFail(chalk.redBright(e.response.data.error.message));
@@ -492,7 +495,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
             } else if (USE_LLM === 'groq') {
                 if (debugMode) debugMode.leave('AIREQ', messages);
                 try {
-                    python_code = await aiChat(messages);
+                    python_code = await aiChat(messages, parameters);
                 } catch (e) {
                     printError(e);
                     oraFail(chalk.redBright(e?.response?.data?.error?.message));
@@ -508,7 +511,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 }
             } else if (USE_LLM === 'anthropic') {
                 try {
-                    python_code = await aiChat(messages)
+                    python_code = await aiChat(messages, parameters)
                 } catch (e) {
                     printError(e);
                     oraFail(chalk.redBright(e.response.data.error.message));
@@ -525,7 +528,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
 
             } else if (USE_LLM === 'gemini') {
                 try {
-                    python_code = await aiChat(messages);
+                    python_code = await aiChat(messages, parameters);
                 } catch (e) {
                     printError(e);
                     oraFail(chalk.redBright(e.response.data.error.message));

@@ -29,7 +29,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.124'; // version
+    const VERSION = '1.0.125'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -96,7 +96,7 @@ import os from 'os';
         .option('-d, --destination <destination>', 'Destination language', '')
         .option('-c, --choosevendor', 'Choose LLM Vendor')
         .option('-m, --choosemodel', 'Choose LLM Model')
-        .option('-b, --debug', 'Debug mode')
+        // .option('-b, --debug', 'Debug mode')
         .option('-p, --python <command>', 'Run a command in the Python virtual environment')
         .action(async (prompt, options) => {
 
@@ -133,9 +133,10 @@ import os from 'os';
                             let counter = 3;
                             while (counter > 0) {
                                 try {
-                                    const iso = await aiChat([{
+                                    let iso = await aiChat([{
                                         role: 'system', content: [
-                                            `Detect language and response in ISO 639-1`,
+                                            `You determine the language in which the user speaks and respond with the appropriate language code in ISO 639-1 format.`,
+                                            `## ISO 639-1 Table`,
                                             `{`,
                                             `    "en": "English",`,
                                             `    "fr": "Français",`,
@@ -150,8 +151,13 @@ import os from 'os';
                                             `    "pt": "Português",`,
                                             `    "hi": "हिन्दी"`,
                                             `}`,
+                                            ``,
+                                            `## INSTRUCT`,
+                                            `- response only 2 bytes for the ISO 639-1 language code`,
                                         ].join('\n').trim()
-                                    }, { role: 'user', content: 'I am happy' }, { role: 'assistant', content: 'en' }, { role: 'user', content: '나는 행복하다' }, { role: 'assistant', content: 'ko' }, { role: 'user', content: input.substring(0, 50) },]);
+                                    }, { role: 'user', content: 'I am happy' }, { role: 'assistant', content: 'en' }, { role: 'user', content: '나는 행복하다' }, { role: 'assistant', content: 'ko' }, { role: 'user', content: '教えて' }, { role: 'assistant', content: 'ja' }, { role: 'user', content: 'cám ơn' }, { role: 'assistant', content: 'vi' }, { role: 'user', content: 'bien-être' }, { role: 'assistant', content: 'fr' }, { role: 'user', content: input.substring(0, 50) },]);
+                                    iso = iso.split('"').join('');
+                                    iso = iso.toLowerCase();
                                     if (iso?.length !== 2) throw null;
                                     return iso;
                                 } catch (errorInfo) {
@@ -197,10 +203,13 @@ import os from 'os';
                                     } catch (e) {
                                         printError(e);
                                     }
-                                    let sentence =
+                                    let sentence;
+                                    if (result?.constructor === Object && Object.keys(result).length === 1) sentence =
                                         result[langtable[options.destination]] ||
                                         result[langtable[options.destination].toLowerCase()] ||
-                                        result[langtable[options.destination].toUpperCase()];
+                                        result[langtable[options.destination].toUpperCase()] ||
+                                        result[Object.keys(result)[0]];
+                                    else if (!sentence && result?.constructor === String) sentence = result;
                                     if (sentence) sentence = sentence.trim();
                                     if (!sentence) throw null;
                                     print(sentence);
@@ -223,7 +232,7 @@ import os from 'os';
                 return;
             }
             async function mainApp(prompt) {
-                let debugMode = (await isDebugMode() || (options.debug)) ? {} : null;
+                let debugMode = false;//(await isDebugMode() || (options.debug)) ? {} : null;
                 if (debugMode) {
                     return;
                     try {
@@ -367,7 +376,7 @@ import os from 'os';
                             setContinousNetworkTryCount(0);
                             const mode = ['Execute Code', 'Re-Generate Code', 'Modify Prompt', 'Quit'];
                             const index = await promptChoices(mode, `Enter your choice`, { cancel: false });
-                            if (index === 1) { askforce = ''; continue; }
+                            if (index === 1) { askforce = 're-generate'; continue; }
                             if (index === 2) {
                                 print(`Previous prompt: ${chalk.bold(getPrompt())}`);
                                 const request = (await ask_prompt_text(`Modify Prompt`)).trim();
