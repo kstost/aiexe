@@ -29,7 +29,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.125'; // version
+    const VERSION = '1.0.126'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -195,6 +195,7 @@ import os from 'os';
                                     messages[messages.length - 1].content = messages[messages.length - 1].content.split('#TRANSDATA#').join('\n```\n' + input + '\n```\n')
                                     let result = await aiChat(messages);
                                     try {
+                                        throw null;
                                         if (typeof result === 'string') {
                                             result = result.split('\n').join(' ');
                                             result = await isCorrectCode(result, ['json'], true)
@@ -203,13 +204,15 @@ import os from 'os';
                                     } catch (e) {
                                         printError(e);
                                     }
-                                    let sentence;
-                                    if (result?.constructor === Object && Object.keys(result).length === 1) sentence =
-                                        result[langtable[options.destination]] ||
-                                        result[langtable[options.destination].toLowerCase()] ||
-                                        result[langtable[options.destination].toUpperCase()] ||
-                                        result[Object.keys(result)[0]];
-                                    else if (!sentence && result?.constructor === String) sentence = result;
+                                    let sentence = result;
+                                    if (false) {
+                                        if (result?.constructor === Object && Object.keys(result).length === 1) sentence =
+                                            result[langtable[options.destination]] ||
+                                            result[langtable[options.destination].toLowerCase()] ||
+                                            result[langtable[options.destination].toUpperCase()] ||
+                                            result[Object.keys(result)[0]];
+                                        else if (!sentence && result?.constructor === String) sentence = result;
+                                    }
                                     if (sentence) sentence = sentence.trim();
                                     if (!sentence) throw null;
                                     print(sentence);

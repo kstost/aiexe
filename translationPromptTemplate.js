@@ -10,10 +10,9 @@ export default {
             #TRANSDATA#
             Guidelines
             - Please only use characters that make up the alphabet and English.
-            - Provide your answer in JSON format. {"english":"Translated English content"}
             - Use a natural, gentle writing style and appropriate words, expressions, and vocabulary.
             - Translate everything as is, without leaving out any content from the original text.
-            - Do not include any content other than JSON.`
+            - Do not include any content other than translated result.`
         }
     ],
     [`fr`]: [
@@ -27,7 +26,7 @@ export default {
             #TRANSDATA#
             Instructions
             - Répondez uniquement en utilisant l'alphabet latin et en français.
-            - N'incluez aucun contenu autre que JSON.`
+            - N'incluez aucun contenu autre que le résultat traduit.`
         }
     ],
     [`ko`]: [
@@ -42,11 +41,10 @@ export default {
             지침
             - 반드시 알파벳, 한글로만 응답하세요.
             - 가타가나 히라가나, 한자는 절대로 포함하지 마세요.
-            - JSON으로 응답하세요. {"korean":"번역된 한국어 내용"}
             - 자연스럽고 부드러운 문체와 적절한 단어, 표현 및 어휘를 사용하세요.
             - 존댓말을 사용하세요.
             - 원문의 내용은 하나도 빼놓지 말고 모두 그대로 번역하세요.
-            - JSON이외의 다른 어떤 내용도 절대로 포함하지 마세요.`
+            - 번역된 결과 이외의 내용은 포함하지 마세요.`
         }
     ],
     [`ja`]: [
@@ -60,11 +58,10 @@ export default {
             #TRANSDATA#
             ガイドライン
             - 必ずアルファベット、日本語を構成する文字でのみ対応してください。
-            - JSONで答えてください。 {"japanese":"翻訳された日本語の内容"}
             - 自然で柔らかい文体と適切な単語、表現、語彙を使用してください。
             - 尊敬語を使用してください。
             - 原文の内容は一つも欠かさず、すべてそのまま翻訳してください。
-            - JSON以外の他のコンテンツは絶対に含めないでください。`
+            - 翻訳結果以外の内容は含めないでください。`
         }
     ],
     [`vi`]: [
@@ -78,11 +75,10 @@ export default {
             #TRANSDATA#
             Hướng dẫn
             - Vui lòng chỉ trả lời bằng chữ cái latinh và tiếng Việt.
-            - Hãy trả lời bằng JSON. {"japanese":"Nội dung dịch sang tiếng Việt"}
             - Sử dụng phong cách mềm mại và tự nhiên với các từ ngữ, biểu đạt và từ vựng phù hợp.
             - Hãy sử dụng ngôn ngữ tôn trọng.
             - Dịch chính xác từng từ trong bản gốc.
-            - Không được bao gồm bất kỳ nội dung nào khác ngoài JSON.`
+            - Không bao gồm bất kỳ nội dung nào ngoài kết quả đã dịch.`
         }
     ],
     [`es`]: [
@@ -96,7 +92,7 @@ export default {
             #TRANSDATA#
             Instrucciones
             - Responde únicamente usando el alfabeto latino y en español.
-            - No incluyas ningún contenido más que JSON.`
+            - No incluya ningún contenido que no sea el resultado traducido.`
         }
     ],
     [`de`]: [
@@ -110,7 +106,7 @@ export default {
             #TRANSDATA#
             Anleitung
             - Bitte antworten Sie nur mit lateinischen Buchstaben und auf Deutsch.
-            - Schließen Sie keinen anderen Inhalt als JSON ein.`
+            - Fügen Sie keine anderen Inhalte als das übersetzte Ergebnis ein.`
         }
     ],
     [`zh`]: [
@@ -123,10 +119,9 @@ export default {
             [`content`]: `请将以下#LANGCODE#句子翻译成中文。
             #TRANSDATA#
             指南
-            - 以 JSON 格式提供您的答案。 {"english":"翻译的中文内容"}
             - 使用自然、温和的写作风格以及适当的单词、表达和词汇。 
             - 按原样翻译所有内容，不要遗漏原文中的任何内容。 
-            - 不要包含除 JSON 之外的任何内容。
+            - 请勿包含翻译结果以外的任何内容。
             `
         }
     ],
@@ -141,7 +136,7 @@ export default {
             #TRANSDATA#
             Руководство
             - Отвечайте только на латинице и на русском языке.
-            - Включайте только JSON, не добавляйте ничего другого.`
+            - Не включайте никакого контента, кроме переведенного результата.`
         }
     ],
     [`it`]: [
@@ -155,7 +150,7 @@ export default {
             #TRANSDATA#
             Istruzioni
             - Rispondi solo usando l'alfabeto latino e in italiano.
-            - Non includere altro contenuto oltre al JSON.`
+            - Non includere alcun contenuto diverso dal risultato tradotto.`
         }
     ],
     [`pt`]: [
@@ -169,7 +164,7 @@ export default {
             #TRANSDATA#
             Instruções
             - Responda apenas usando o alfabeto latino e em português.
-            - Não inclua nenhum outro conteúdo além do JSON.`
+            - Não inclua nenhum conteúdo além do resultado traduzido.`
         }
     ],
     [`hi`]: [
@@ -183,6 +178,6 @@ export default {
             #TRANSDATA#
             निर्देश
             - कृपया केवल लैटिन अक्षरों और हिंदी में उत्तर दें।
-            - कृपया JSON के अलावा कोई अन्य सामग्री शामिल न करें।`
+            - अनुवादित परिणाम के अलावा कोई भी सामग्री शामिल न करें।`
         }],
 };
