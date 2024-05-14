@@ -12,6 +12,7 @@ export const contextWindows = {
     "llama3:8b-instruct-q8_0": 8192,
     "llama3:70b": 8192,
     "gemini-pro": 1000000,
+    "gpt-4o": 128000,
     "gpt-4-turbo": 128000,
     "gpt-4": 8192,
     "gpt-3.5-turbo": 16385,

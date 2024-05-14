@@ -1,13 +1,13 @@
 {
   "name": "aiexe",
-  "version": "1.0.126",
+  "version": "1.0.127",
   "description": "",
   "main": "index.js",
   "type": "module",
   "bin": {
     "aiexe": "index.js"
   },
-  "license": "AGPL-version-3.0",
+  "license": "MIT",
   "private": false,
   "engines": {
     "node": ">= 14.0.0",

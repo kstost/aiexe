@@ -45,7 +45,7 @@ export async function installProcess() {
         if (!await isKeyInConfig('OPENAI_MODEL')) {
             print(chalk.bold('Which OpenAI model do you want to use for your queries?'))
             setContinousNetworkTryCount(0);
-            let mode = ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
+            let mode = ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
             let index = await promptChoices(mode, `Enter your choice`, { cancel: false });
             await setVarVal('OPENAI_MODEL', mode[index]);
             setted = true;

@@ -27,6 +27,8 @@ import os from 'os';
 export async function createVENV() {
     const pythonPath = await checkPythonForTermination();
     if (!pythonPath) return;
+    const venv_path = await getPythonVenvPath();
+    if (venv_path) return;
     const venvCandidate = await venvCandidatePath();
     oraStart('Creating virtual environment for Python');
     if (disableOra) oraStop();

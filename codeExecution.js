@@ -61,10 +61,11 @@ export async function shell_exec(python_code, only_save = false) {
     });
 }
 export async function execInVenv(command, app) {
-    return new Promise(async resolve => {
+    await createVENV();
+    return new Promise(async (resolve, reject) => {
         oraStart(`Executing code`);
         const python_interpreter_ = await getPythonPipPath(app.toLowerCase());
-        if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
+        if (!python_interpreter_) { oraFail(chalk.red('Python Interpreter Not Found')); reject(new Error('Python Interpreter Not Found')); return; }
         const pythonCmd = `'${python_interpreter_}' ${addslashes(command)}`;
         const child = shelljs.exec(await makeVEnvCmd(pythonCmd), { async: true, silent: true });
         attatchWatcher(child, resolve);
