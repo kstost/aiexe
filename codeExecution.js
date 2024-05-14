@@ -90,10 +90,50 @@ export function attatchWatcher(child, resolve, python_code) {
         resolve({ code, stdout: stdout.join(''), stderr: stderr.join(''), python_code });
     });
 }
+export async function execPlain(cmd) {
+    return new Promise(resolve => {
+        shelljs.exec(cmd, { silent: true, }, (code, stdout, stderr) => {
+            resolve({ code, stdout, stderr });
+        })
+    })
+}
+
+let __powershellPath;
+export async function getPowerShellPath() {
+    try {
+        if (!isWindows()) return;
+        if (__powershellPath) return __powershellPath;
+        let testCommands = [
+            '(Get-Command powershell).Source',
+            'where.exe powershell',
+            'C:\\Windows\\System32\\where.exe powershell',
+        ];
+        let powershellPath;
+        for (let i = 0; i < testCommands.length; i++) {
+            let result = await execPlain(testCommands[i]);
+            if (result.code) continue;
+            let _powershellPath = result.stdout.trim().split('\n')[0].trim();
+            if (!await is_file(_powershellPath)) continue;
+            powershellPath = _powershellPath;
+        }
+        let hardpath = `C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
+        if (await is_file(hardpath)) powershellPath = hardpath;
+        if (isBadStr(powershellPath)) powershellPath = null;
+        if (!powershellPath) {
+            print(chalk.red(`Window PowerShell not found`));
+            process.exit(1);
+            return;
+        }
+        __powershellPath = powershellPath;
+        return powershellPath;
+    } catch { }
+}
+
 export async function execAdv(cmd, mode = true, opt = {}) {
     if (isWindows()) {
+        const powershell = await getPowerShellPath();
         return new Promise(resolve => {
-            shelljs.exec(mode ? `powershell -Command "${cmd}"` : cmd, { silent: true, ...opt }, (code, stdout, stderr) => {
+            shelljs.exec(mode ? `"${powershell}" -Command "${cmd}"` : cmd, { silent: true, ...opt }, (code, stdout, stderr) => {
                 resolve({ code, stdout, stderr });
             })
         })

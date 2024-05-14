@@ -112,7 +112,8 @@ export async function makeVEnvCmd(pythonCmd) {
     const activateCmd = await getActivatePath();
     pythonCmd = pythonCmd.split(`"`).join(`\\"`);
     if (isWindows()) {
-        return `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {$env:PYTHONIOENCODING='utf-8'; & '${activateCmd}'}; & ${pythonCmd}" < nul`;
+        const powershell = await getPowerShellPath();
+        return `"${powershell}" -NoProfile -ExecutionPolicy Bypass -Command "& {$env:PYTHONIOENCODING='utf-8'; & '${activateCmd}'}; & ${pythonCmd}" < nul`;
     } else {
         const bash_path = !isWindows() ? await which(`bash`) : null;
         return `"${bash_path}" -c "source '${activateCmd}' && ${pythonCmd} < /dev/null"`;
