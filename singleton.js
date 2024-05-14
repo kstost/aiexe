@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import chalk from 'chalk';
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
 const singleton = {
