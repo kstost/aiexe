@@ -30,7 +30,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.128'; // version
+    const VERSION = '1.0.129'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -102,6 +102,40 @@ import os from 'os';
         .action(async (prompt, options) => {
 
             singleton.options = options;
+            if (singleton?.options?.debug === 'python_path_test_for_windows') {
+                await (async () => {
+                    async function execTest(cmd) {
+                        return new Promise(resolve => {
+                            shelljs.exec(cmd, { silent: true, }, (code, stdout, stderr) => {
+                                resolve({ code, stdout, stderr });
+                            })
+                        })
+                    }
+                    const commands = [
+                        `Where.exe python`,
+                        `Where.exe python3`,
+                        `(Get-ChildItem Env:Path).Value`,
+                        `(Get-ChildItem Env:PATH).Value`,
+                        `powershell -Command "(Get-Command python).Source"`,
+                        `powershell -Command "(Get-Command python3).Source"`,
+                        `(Get-Command python).Source`,
+                        `(Get-Command python3).Source`,
+                        `Get-Command python`,
+                        `Get-Command python3`,
+                        `python --version`,
+                        `python3 --version`,
+                    ];
+                    for (let i = 0; i < commands.length; i++) {
+                        console.log('-'.repeat(20));
+                        console.log('CommandTest:', commands[i]);
+                        console.log(await execTest(commands[i]));
+                    }
+                    console.log('-'.repeat(20));
+                    console.log('Thank you.')
+                })();
+                process.exit(0);
+                return;
+            }
             const bash_path = !isWindows() ? await which(`bash`) : null;
             if (!isWindows() && !bash_path) {
                 console.error('This app requires bash to function.')
