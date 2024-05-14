@@ -8,6 +8,7 @@ import { createVENV, doctorCheck, disableAllVariable, disableVariable, getRCPath
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
+import singleton from './singleton.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
 import axios from 'axios';
@@ -152,10 +153,13 @@ export async function installProcess() {
     return setted;
 }
 export async function realworld_which_python() {
+    singleton.debug({ head: '-'.repeat(10) }, 'realworld_which_python');
     const list = ['python', 'python3'];
     for (let i = 0; i < list.length; i++) {
         const name = list[i];
+        singleton.debug({ name }, 'realworld_which_python');
         const ppath = await which(name);
+        singleton.debug({ path: ppath }, 'realworld_which_python');
         if (!ppath) continue;
         if (isBadStr(ppath)) throw ppath;
         const str = `${Math.random()}`;
@@ -163,6 +167,7 @@ export async function realworld_which_python() {
         if (isWindows()) rfg = await execAdv(`& '${ppath}' -c \\"print('${str}')\\"`);
         else rfg = await execAdv(`"${ppath}" -c "print('${str}')"`);
         let { stdout } = rfg;
+        singleton.debug({ result: stdout.trim(), source: str, comparison: stdout.trim() === str }, 'realworld_which_python');
         if (stdout.trim() === str) return ppath;
     }
 }
@@ -201,11 +206,21 @@ export async function getActivatePath() {
     }
 }
 export async function getPythonPipPath(app = 'python', venv = true) {
+    singleton.debug({ head: '-'.repeat(10) }, 'getPythonPipPath');
     const venv_path = await getVarVal('PYTHON_VENV_PATH');
     async function pythonPath() {
-        try { return await realworld_which_python(); } catch (errorInfo) { printError(errorInfo); }
+        try { return await realworld_which_python(); } catch (errorInfo) {
+            singleton.debug({ error: errorInfo, inside: true }, 'getPythonPipPath');
+            printError(errorInfo);
+        }
     }
-    if (!venv) return await pythonPath();
+    singleton.debug({ venv, app, win32: isWindows() }, 'getPythonPipPath');
+    singleton.debug({ venv_path }, 'getPythonPipPath');
+    if (!venv) {
+        const rwp = await pythonPath();
+        singleton.debug({ rwp }, 'getPythonPipPath');
+        return rwp;
+    }
     let foundPath = ''
     try {
         const python = ['python', 'python3'].includes(app);
@@ -229,7 +244,11 @@ export async function getPythonPipPath(app = 'python', venv = true) {
                 `${venv_path}/bin/pip3`,
             ]).find(fs.existsSync);
         }
-    } catch (errorInfo) { printError(errorInfo); }
+    } catch (errorInfo) {
+        singleton.debug({ error: errorInfo }, 'getPythonPipPath');
+        printError(errorInfo);
+    }
+    singleton.debug({ foundPath }, 'getPythonPipPath');
     return foundPath || '';
 }
 export async function venvCandidatePath() {
@@ -255,6 +274,7 @@ export async function checkPythonForTermination() {
     try {
         python_interpreter = await getPythonPipPath('python', false);
     } catch (errorInfo) {
+        singleton.debug({ error: errorInfo }, 'checkPythonForTermination');
         printError(errorInfo);
     }
     if (!python_interpreter) {

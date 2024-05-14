@@ -10,6 +10,7 @@ import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRati
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
+import singleton from './singleton.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
 import axios from 'axios';
@@ -29,7 +30,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.127'; // version
+    const VERSION = '1.0.128'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -96,10 +97,11 @@ import os from 'os';
         .option('-d, --destination <destination>', 'Destination language', '')
         .option('-c, --choosevendor', 'Choose LLM Vendor')
         .option('-m, --choosemodel', 'Choose LLM Model')
-        // .option('-b, --debug', 'Debug mode')
+        .option('-b, --debug <scopename>', 'Debug mode', '')
         .option('-p, --python <command>', 'Run a command in the Python virtual environment')
         .action(async (prompt, options) => {
 
+            singleton.options = options;
             const bash_path = !isWindows() ? await which(`bash`) : null;
             if (!isWindows() && !bash_path) {
                 console.error('This app requires bash to function.')
