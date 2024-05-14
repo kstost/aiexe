@@ -117,7 +117,7 @@ export async function getPowerShellPath() {
             powershellPath = _powershellPath;
         }
         let hardpath = `C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
-        if (await is_file(hardpath)) powershellPath = hardpath;
+        if (!powershellPath && await is_file(hardpath)) powershellPath = hardpath;
         if (isBadStr(powershellPath)) powershellPath = null;
         if (!powershellPath) {
             print(chalk.red(`Window PowerShell not found`));
