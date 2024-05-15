@@ -236,6 +236,38 @@ export async function openaiChat(messages, parameters = { temperature: 0 }) {
             printError(e);
             indicator.fail(chalk.red(`Requesting ${chalk.bold(OPENAI_MODEL)} failed`));
             oraStart(tempMessageForIndicator);
+
+            let errorMessage = (e?.response?.data?.error?.message || '').trim();
+            if (errorMessage.startsWith('Rate limit reached for') && errorMessage.indexOf('Please try again in ') > -1) {
+                function extractTime(message) {
+                    const match = message.match(/Please try again in (\d+\.?\d*)(ms|s|m|h)/);
+                    if (match) {
+                        const time = parseFloat(match[1]);
+                        switch (match[2]) {
+                            case 's':
+                                return time * 1000;
+                            case 'm':
+                                return time * 60 * 1000;
+                            case 'h':
+                                return time * 60 * 60 * 1000;
+                            default: // 'ms'인 경우
+                                return time;
+                        }
+                    }
+                    return null; // 매치되지 않는 경우 null 반환
+                }
+                let waitTime
+                try {
+                    waitTime = Math.ceil((extractTime(errorMessage) / 1000) * 1.1)
+                    if (waitTime === null) throw null;
+                    print(chalk.red(errorMessage));
+                    await waitTimeFor(waitTime * 1000);
+                    continue;
+                } catch {
+                    throw e;
+                }
+            }
+
             if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                 await new Promise(resolve => setTimeout(resolve, 1000));
             } else {
