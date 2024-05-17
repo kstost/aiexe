@@ -8,6 +8,7 @@ import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRati
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
+import singleton from './singleton.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
 import axios from 'axios';
@@ -34,11 +35,37 @@ export function getContinousNetworkTryCount() {
 
 export async function aiChat(messages, parameters) {
     const USE_LLM = await getVarVal('USE_LLM');
+    if (singleton?.options?.debug === 'messages_payloads') {
+        const venv_path = await getPythonVenvPath();
+        if (venv_path) {
+            const logfile = `${venv_path}/messages_payloads.${getCurrentDateTime()}.json`;
+            await fsPromises.appendFile(logfile, JSON.stringify(messages, undefined, 3));
+        }
+    }
+    // print(messages);
+    messages.forEach(talk => delete talk.token_size);
+    // print(messages);
     if (USE_LLM === 'openai') return await openaiChat(messages, parameters);
     if (USE_LLM === 'gemini') return await geminiChat(messages, parameters);
     if (USE_LLM === 'anthropic') return await anthropicChat(messages, parameters);
     if (USE_LLM === 'ollama') return await ollamaChat(messages, parameters);
     if (USE_LLM === 'groq') return await groqChat(messages, parameters);
+
+    // let failCount = 10;
+    // while (failCount > 0) {
+    //     try {
+    //         if (USE_LLM === 'openai') return await openaiChat(messages, parameters);
+    //         if (USE_LLM === 'gemini') return await geminiChat(messages, parameters);
+    //         if (USE_LLM === 'anthropic') return await anthropicChat(messages, parameters);
+    //         if (USE_LLM === 'ollama') return await ollamaChat(messages, parameters);
+    //         if (USE_LLM === 'groq') return await groqChat(messages, parameters);
+    //     } catch (e) {
+    //         if (!isContextWindowExceeded(e?.response?.data?.error?.message)) throw e;
+    //         else 1
+    //     }
+    //     failCount--;
+    // }
+    // return '';
 }
 export async function geminiChat(messages, parameters = { temperature: 0 }) {
     const debugMode = false;
@@ -361,66 +388,165 @@ export async function turnOnOllamaAndGetModelList() {
         }
     }
 }
-export function combindMessageHistory(summary, messages_, history, askforce) {
-    return [
-        askforce === 'ask_opinion' ? {
-            role: "system",
-            content: [
-                `You are an AI assistant. Your primary role is to assist users in verifying the correctness of code execution results and explaining the meaning and implications of those results.`,
-                `As a code execution and interpretation assistant, you are responsible for:`,
-                `- Reviewing the code execution results provided by the user and confirming whether they align with the expected output based on the code's logic and functionality.`,
-                `- Providing clear and concise explanations of what the code execution results mean in the context of the problem being solved or the task being accomplished.`,
-                ``,
-                `${summary ? `## SUMMARY SO FAR:` : ''}`,
-                `${summary ? summary : ''}`,
-            ].join('\n').trim()
-        } : {
-            role: "system",
-            content: [
-                `# Create Python code to handle user requests`,
-                `You are a python programmer who creates python code to solve user's request.  `,
-                `The user will run the python code you will provide, so you should only provide python code that can be executed.  `,
-                ``,
-                `## INSTRUCTION:`,
-                `- Response only the python code.`,
-                `- As import modules, use try-except to first check whether the module you want to use exists, and if it does not exist, include logic to install it as a subprocess not the way commanding in Jupyter Notebooks like \`!pip\``,
-                `- Please avoid using commands that only work in interactive environments like Jupyter Notebooks, especially those starting with \`!\`, in standard Python script files.`,
-                `- Always use the explicit output method via the print function, not expression evaluation, when your Python code displays results.`,
-                `- Code should include all dependencies such as variables and functions required for proper execution.`,
-                `- Never explain about response`,
-                `- The code must contain all dependencies such as referenced modules, variables, functions, and classes in one code.`,
-                `- The entire response must consist of only one complete form of code.`,
-                `${isWindows() ? `The Python code will run on Microsoft Windows Environment\n` : ''}`,
-                `## CODING CONVENTIONS:`,
-                `- STANDARD CODING STYLE TO IMPORT:`,
-                `    If you want to use a module in your code, import the module using the following logic before using it.`,
-                `    ${threeticks}python`,
-                `    try:`,
-                `        import package_name`,
-                `    except ImportError:`,
-                `        import subprocess`,
-                `        subprocess.run(['pip', 'install', 'package_name'])`,
-                `    package_name # using of the module after importing logic`,
-                `    ${threeticks}`,
-                ``,
-                `## Exception`,
-                `- As an exception, if you request a simple explanation that does not require Python code to resolve the user's request, please respond with an explanation in natural language rather than Python code.`,
-                ``,
-                `${summary ? `## SUMMARY SO FAR:` : ''}`,
-                `${summary ? summary : ''}`,
-            ].join('\n').trim()
-        },
-        ...messages_
-        , ...history
-    ]
+export async function combindMessageHistory(summary, messages_, history, askforce, contextWindowRatio = 1) {
+    const allowed = await getContextWindowSize();
+    const reqToken = (allowed - (allowed * responseTokenRatio)) * contextWindowRatio;
+
+    function makeCandidate(messages_, history) {
+        // {{STDOUT}}
+        let messageCloned = JSON.parse(JSON.stringify(messages_));
+        let historyCloned = JSON.parse(JSON.stringify(history));
+        if (false) [messageCloned, historyCloned].forEach(dt => dt.forEach(data => {
+            const stdout = data.stdout;
+            delete data.stdout;
+            data.content = data.content.split(`{{STDOUT}}`).join(stdout);
+        }));
+        let candidate;
+        candidate = [
+            askforce === 'ask_opinion' ? {
+                role: "system",
+                content: [
+                    `You are an AI assistant. Your primary role is to assist users in verifying the correctness of code execution results and explaining the meaning and implications of those results.`,
+                    `As a code execution and interpretation assistant, you are responsible for:`,
+                    `- Reviewing the code execution results provided by the user and confirming whether they align with the expected output based on the code's logic and functionality.`,
+                    `- Providing clear and concise explanations of what the code execution results mean in the context of the problem being solved or the task being accomplished.`,
+                    ``,
+                    `${summary ? `## SUMMARY SO FAR:` : ''}`,
+                    `${summary ? summary : ''}`,
+                ].join('\n').trim()
+            } : {
+                role: "system",
+                content: [
+                    `# Create Python code to handle user requests`,
+                    `You are a python programmer who creates python code to solve user's request.  `,
+                    `The user will run the python code you will provide, so you should only provide python code that can be executed.  `,
+                    ``,
+                    `## INSTRUCTION:`,
+                    `- Response only the python code.`,
+                    `- As import modules, use try-except to first check whether the module you want to use exists, and if it does not exist, include logic to install it as a subprocess not the way commanding in Jupyter Notebooks like \`!pip\``,
+                    `- Please avoid using commands that only work in interactive environments like Jupyter Notebooks, especially those starting with \`!\`, in standard Python script files.`,
+                    `- Always use the explicit output method via the print function, not expression evaluation, when your Python code displays results.`,
+                    `- Code should include all dependencies such as variables and functions required for proper execution.`,
+                    `- Never explain about response`,
+                    `- The code must contain all dependencies such as referenced modules, variables, functions, and classes in one code.`,
+                    `- The entire response must consist of only one complete form of code.`,
+                    `${isWindows() ? `The Python code will run on Microsoft Windows Environment\n` : ''}`,
+                    `## CODING CONVENTIONS:`,
+                    `- STANDARD CODING STYLE TO IMPORT:`,
+                    `    If you want to use a module in your code, import the module using the following logic before using it.`,
+                    `    ${threeticks}python`,
+                    `    try:`,
+                    `        import package_name`,
+                    `    except ImportError:`,
+                    `        import subprocess`,
+                    `        subprocess.run(['pip', 'install', 'package_name'])`,
+                    `    package_name # using of the module after importing logic`,
+                    `    ${threeticks}`,
+                    ``,
+                    `## Exception`,
+                    `- As an exception, if you request a simple explanation that does not require Python code to resolve the user's request, please respond with an explanation in natural language rather than Python code.`,
+                    ``,
+                    `${summary ? `## SUMMARY SO FAR:` : ''}`,
+                    `${summary ? summary : ''}`,
+                ].join('\n').trim()
+            },
+            ...messageCloned
+            , ...historyCloned
+        ];
+        return candidate;
+    }
+    let candidate = makeCandidate(messages_, history);
+    function reducer(messages, excessTokens) {
+        const tokens = splitTokens(messages);
+        const trimmedTokens = tokens.slice(0, tokens.length - excessTokens);
+        return trimmedTokens.join('');
+    }
+    function measureData(ddf) {
+        let measure = JSON.parse(JSON.stringify(ddf));
+        if (measure.stdout !== undefined) {
+            if (measure.reduced) measure.stdout += `\n.\n.\n...(omitted below)`;
+            measure.content = measure.content.split('{{STDOUT}}').join(measure.stdout);
+            delete measure.stdout;
+        } else {
+            if (measure.reduced) measure.content += `\n.\n.\n...(omitted below)`;
+        }
+        delete measure.reduced;
+        return measure;
+    }
+    function renderedCandidate(d1df) {
+        const ddf = JSON.parse(JSON.stringify(d1df));
+        for (let i = 1; i < ddf.length; i++) ddf[i] = measureData(ddf[i]);
+        return ddf;
+    }
+    let systemMessageToken = null;
+    while (true) {
+        let totalToken = await tokenEstimater(renderedCandidate(candidate));
+        if (totalToken <= reqToken) break;
+        if (systemMessageToken === null) systemMessageToken = await tokenEstimater(measureData(candidate[0]));
+        let leftToken = reqToken - systemMessageToken;
+        let messagesCount = candidate.length - 1;
+        let allowedTokenPerMessage = Math.floor(leftToken / messagesCount);
+        let lastloop = false;
+        for (let i = 1; i < candidate.length; i++) {
+            lastloop = i === candidate.length - 1;
+            if (candidate[i].reduced) continue;
+            let messageToken = await tokenEstimater(measureData(candidate[i]));
+            if (allowedTokenPerMessage >= messageToken) continue;
+            if (candidate[i].stdout !== undefined) {
+                candidate[i].stdout = reducer(candidate[i].stdout, messageToken - allowedTokenPerMessage);
+            } else {
+                candidate[i].content = reducer(candidate[i].content, messageToken - allowedTokenPerMessage);
+            }
+            candidate[i].reduced = true;
+            break;
+        }
+        if (lastloop) break;
+        if (candidate.filter(can => can.reduced).length === candidate.length - 1) break;
+    }
+    //--------------------------------
+    candidate = renderedCandidate(candidate);
+    await Promise.all(candidate.map(async talk => talk.token_size = await tokenEstimater(talk)));
+    // cd ~/hypergw/aiexe && node index.js -b messages_payloads "print from 0 to 100000"
+    return candidate;
 }
-export async function code_generator(summary, messages_ = [], history = [], askforce, debugMode, defineNewMission, addHistory, getPrompt) {
+export async function tokenEstimater(messages) {
+    const messagesJson = JSON.stringify(messages, undefined, 3);
+    const tokens = splitTokens(messagesJson);
+    return tokens.length;
+}
+function splitTokens(input) {
+    const regex1 = /([\s!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/;
+    const regex2 = /[\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/;
+    let result = [];
+    let tempString = "";
+    while (input.indexOf('  ') > -1) input = input.split('  ').join(' ');
+    for (let char of input) {
+        if (regex1.test(char) || regex2.test(char)) {
+            if (tempString.length > 0) {
+                result.push(tempString);
+                tempString = "";
+            }
+            result.push(char);
+        } else {
+            tempString += char;
+        }
+    }
+    if (tempString.length > 0) {
+        result.push(tempString);
+    }
+    return result;
+}
+function isContextWindowExceeded(errmsg) {
+    if (!errmsg) return false;
+    return errmsg.indexOf('Please reduce the length of the messages or completion') > -1;
+}
+export async function code_generator(summary, messages_ = [], history = [], askforce, debugMode, defineNewMission, addHistory, getPrompt, contextWindowRatio = 1) {
     const USE_LLM = await getVarVal('USE_LLM');
     let python_code = '';
     let abort = false;
     try {
         while (true) {
-            let messages = combindMessageHistory(summary, messages_, history, askforce);
+            let messages = await combindMessageHistory(summary, messages_, history, askforce, contextWindowRatio);
             oraStop();
             // re-generate                      | 
             // run_code_causes_error            | 히스토리의 마지막은 user
@@ -513,7 +639,15 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     python_code = await aiChat(messages, parameters);
                 } catch (e) {
                     printError(e);
-                    oraFail(chalk.redBright(e.response.data.error.message));
+                    const message = e?.response?.data?.error?.message;
+                    if (isContextWindowExceeded(message)) {
+                        contextWindowRatio -= 0.1;
+                        if (contextWindowRatio > 0.1) {
+                            oraStop();
+                            continue;
+                        }
+                    }
+                    oraFail(chalk.redBright(message));
                     if (e.response.data.error.code === 'invalid_api_key') {
                         let answer = await ask_prompt_text(`What is your OpenAI API key for accessing OpenAI services?`);
                         await disableVariable('OPENAI_API_KEY');
@@ -530,7 +664,15 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     python_code = await aiChat(messages, parameters);
                 } catch (e) {
                     printError(e);
-                    oraFail(chalk.redBright(e?.response?.data?.error?.message));
+                    const message = e?.response?.data?.error?.message;
+                    if (isContextWindowExceeded(message)) {
+                        contextWindowRatio -= 0.1;
+                        if (contextWindowRatio > 0.1) {
+                            oraStop();
+                            continue;
+                        }
+                    }
+                    oraFail(chalk.redBright(message));
                     if (e.response.data.error.code === 'invalid_api_key') {
                         let answer = await ask_prompt_text(`What is your Groq API key for accessing Groq services?`);
                         await disableVariable('GROQ_API_KEY');
@@ -547,6 +689,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 } catch (e) {
                     printError(e);
                     oraFail(chalk.redBright(e.response.data.error.message));
+                    // e.response.data.error 컨텍스트 윈도우를 넘치는 경우에 대한 처리 필요.
                     if (e.response.data.error.type === 'authentication_error') {
                         let answer = await ask_prompt_text(`What is your Anthropic API key for accessing Anthropic services?`);
                         await disableVariable('ANTHROPIC_API_KEY');
@@ -564,6 +707,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 } catch (e) {
                     printError(e);
                     oraFail(chalk.redBright(e.response.data.error.message));
+                    // e.response.data.error 컨텍스트 윈도우를 넘치는 경우에 대한 처리 필요.
                     if (e.response.data.error.status === 'INVALID_ARGUMENT') {
                         // 이 상황이 꼭 API키가 잘못되었을경우만 있는것은 아니다.
                         if (true) process.exit(1);

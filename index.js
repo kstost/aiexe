@@ -30,7 +30,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.133'; // version
+    const VERSION = '1.0.134'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -380,7 +380,7 @@ import os from 'os';
                         let result2;
                         try {
                             summary = await summarize(summary, limitline, annn);
-                            result2 = await code_generator(summary, messages_, history, askforce, debugMode, defineNewMission, addHistory, getPrompt)
+                            result2 = await code_generator(summary, messages_, history, askforce, debugMode, defineNewMission, addHistory, getPrompt);
                             python_code = result2.python_code;
                             correct_code = result2.correct_code;
                             if (result2.abort) break;
@@ -447,7 +447,7 @@ import os from 'os';
                                     content: '```\n' + python_code + '\n```'
                                 });
                                 let out = result.stdout;
-                                if (true) {
+                                if (!true) {
                                     const split = splitStringIntoTokens(out);
                                     const allowed = await getContextWindowSize();
                                     const reqToken = (allowed - (allowed * responseTokenRatio));
@@ -463,9 +463,10 @@ import os from 'os';
                                 resetHistory();
                                 addHistory({
                                     role: "user",
+                                    stdout: out,
                                     content: `
                                     ${USE_LLM === 'ollama' ? `이전에 제공한 코드를 실행하여 다음과 같은 결과를 얻었습니다.` : `I executed the code you provided earlier and obtained the following results:`}
-                                    ${'\n\n' + threeticks + `stdout\n${out}\n` + threeticks + '\n\n'}
+                                    ${'\n\n' + threeticks + `stdout\n{{STDOUT}}\n` + threeticks + '\n\n'}
                                     ${USE_LLM === 'ollama' ?
                                             `이 결과가 정확하고 예상한 대로인지 확인해 주시겠습니까? 또한, 이러한 결과가 코드의 맥락과 우리가 해결하려는 문제에 대해 무엇을 의미하는지 설명해주세요.\n지침\n- 한국어 이외의 다른 언어는 포함하지 마세요.\n- 오직 대한민국의 공식 언어인 한국어로만 모든것을 설명하세요.` :
                                             `Could you please confirm if these results are correct and as expected? Additionally, I would greatly appreciate it if you could explain what these results signify in the context of the code and the problem we are trying to solve.\n\nINSTRUCTION\n- If user's request is written in korean, then response in korean.`
