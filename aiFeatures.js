@@ -464,7 +464,7 @@ export async function combindMessageHistory(summary, messages_, history, askforc
     function measureData(ddf) {
         let measure = JSON.parse(JSON.stringify(ddf));
         if (measure.stdout !== undefined) {
-            if (measure.reduced) measure.stdout += `\n.\n.\n...(omitted below)`;
+            if (measure.reduced) measure.stdout += `\n.\n.\n...(omitted below)\n${threeticks}`;
             measure.content = measure.content.split('{{STDOUT}}').join(measure.stdout);
             delete measure.stdout;
         } else {
