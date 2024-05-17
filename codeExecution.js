@@ -22,6 +22,7 @@ import figlet from 'figlet';
 import { fileURLToPath } from 'url';
 import { Command } from 'commander';
 import { promises as fsPromises } from 'fs';
+import { spawn } from 'child_process';
 import os from 'os';
 
 
@@ -56,7 +57,9 @@ export async function shell_exec(python_code, only_save = false) {
         const python_interpreter_ = await getPythonPipPath();
         if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
         const pythonCmd = `'${python_interpreter_}' -u '${scriptPath}'`;
-        const child = shelljs.exec(await makeVEnvCmd(pythonCmd), { async: true, silent: true });
+        const arg = await makeVEnvCmd(pythonCmd, true);
+        const env = Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' });
+        const child = spawn(...arg, { env, stdio: ['inherit', 'pipe', 'pipe'] });
         attatchWatcher(child, resolve, python_code);
     });
 }

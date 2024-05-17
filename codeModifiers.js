@@ -108,14 +108,24 @@ export async function code_validator(filepath) { // OK
     });
 }
 
-export async function makeVEnvCmd(pythonCmd) {
+export async function makeVEnvCmd(pythonCmd, spawn = false) {
     const activateCmd = await getActivatePath();
     pythonCmd = pythonCmd.split(`"`).join(`\\"`);
-    if (isWindows()) {
-        const powershell = await getPowerShellPath();
-        return `"${powershell}" -NoProfile -ExecutionPolicy Bypass -Command "& {$env:PYTHONIOENCODING='utf-8'; & '${activateCmd}'}; & ${pythonCmd}" < nul`;
+    if (spawn) {
+        if (isWindows()) {
+            const powershell = await getPowerShellPath();
+            return [`${powershell}`, [`${powershell}`, `-NoProfile`, `-ExecutionPolicy`, `Bypass`, `-Command`, `"& '${activateCmd}'; & ${pythonCmd}"`]];
+        } else {
+            const bash_path = !isWindows() ? await which(`bash`) : null;
+            return [`${bash_path}`, ['-c', `"${bash_path}" -c "source '${activateCmd}' && ${pythonCmd}"`]]
+        }
     } else {
-        const bash_path = !isWindows() ? await which(`bash`) : null;
-        return `"${bash_path}" -c "source '${activateCmd}' && ${pythonCmd} < /dev/null"`;
+        if (isWindows()) {
+            const powershell = await getPowerShellPath();
+            return `"${powershell}" -NoProfile -ExecutionPolicy Bypass -Command "& {$env:PYTHONIOENCODING='utf-8'; & '${activateCmd}'}; & ${pythonCmd}" < nul`;
+        } else {
+            const bash_path = !isWindows() ? await which(`bash`) : null;
+            return `"${bash_path}" -c "source '${activateCmd}' && ${pythonCmd} < /dev/null"`;
+        }
     }
 }
