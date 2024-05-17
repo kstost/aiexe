@@ -30,7 +30,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.135'; // version
+    const VERSION = '1.0.136'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -116,8 +116,8 @@ import os from 'os';
                         `Where.exe powershell`,
                         `Where.exe python`,
                         `Where.exe python3`,
-                        `(Get-ChildItem Env:Path).Value`,
-                        `(Get-ChildItem Env:PATH).Value`,
+                        // `(Get-ChildItem Env:Path).Value`,
+                        // `(Get-ChildItem Env:PATH).Value`,
                         `(Get-Command powershell).Source`,
                         `(Get-Command python).Source`,
                         `(Get-Command python3).Source`,
@@ -131,10 +131,11 @@ import os from 'os';
                         ...commands,
                         ...commands.map(line => {
                             if (!powershellpath) return;
-                            return `'${powershellpath}' -Command "${line}"`
+                            if (powershellpath.indexOf(' ') > -1) return;
+                            return `${powershellpath} -Command "${line}"`
                         }).filter(Boolean),
                     ];
-                    let resultList = [];
+                    let resultList = [{ powershellpath }];
                     for (let i = 0; i < commandList.length; i++) {
                         let result = await execTest(commandList[i]);
                         result.command = commandList[i];
@@ -142,6 +143,8 @@ import os from 'os';
                     }
                     console.log('-'.repeat(80));
                     console.log(`확인해봐주셔서 감사합니다.`);
+                    console.log(`각 AIEXE 이용을 위해 필요한 컴퓨터 환경에 설치된 python, powershell등의 위치가 올바르게 인식되는지에 대한 확인을위한 명령어와 그에 따른 수행결과입니다.`);
+                    console.log(commandList.join('\n'));
                     console.log(`여기에서부터`);
                     console.log(JSON.stringify(resultList))
                     console.log(`여기까지의 내용을`);
