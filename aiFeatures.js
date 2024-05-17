@@ -510,7 +510,15 @@ export async function combindMessageHistory(summary, messages_, history, askforc
     return candidate;
 }
 export async function tokenEstimater(messages) {
-    const messagesJson = JSON.stringify(messages, undefined, 3);
+    const messagesJson = (typeof messages) === 'string' ? messages : (() => {
+        let data = [];
+        if (messages.constructor === Object) messages = [messages];
+        for (let i = 0; i < messages.length; i++) {
+            data.push(`role:${messages[i].role}`);
+            data.push(`content:${messages[i].content}`);
+        }
+        return data.join('\n');
+    })();
     const tokens = splitTokens(messagesJson);
     return tokens.length;
 }
@@ -534,7 +542,17 @@ function splitTokens(input) {
     if (tempString.length > 0) {
         result.push(tempString);
     }
-    return result;
+    let nds = [];
+    for (let i = 0; i < result.length; i++) {
+        if (result[i] !== ' ' || i === result.length - 1) {
+            if (i > 0 && result[i - 1] === ' ') {
+                nds.push(' ' + result[i]);
+            } else {
+                nds.push(result[i]);
+            }
+        }
+    }
+    return nds;
 }
 function isContextWindowExceeded(errmsg) {
     if (!errmsg) return false;
