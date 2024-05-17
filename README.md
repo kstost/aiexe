@@ -40,7 +40,7 @@ Before you begin, ensure you have `npm` and Python installed on your system.
 ### Windows Installation
 1. Download and install Node.js from [nodejs.org](https://nodejs.org).
 2. Download and install Python from [python.org](https://www.python.org/).
-3. Run PowerShell as administrator and execute the following command to set the execution policy:
+3. Run PowerShell and execute the following command to set the execution policy:
    ```powershell
    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
    ```
