@@ -30,7 +30,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.134'; // version
+    const VERSION = '1.0.135'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -111,29 +111,42 @@ import os from 'os';
                             })
                         })
                     }
+                    const powershellpath = await getPowerShellPath();
                     const commands = [
+                        `Where.exe powershell`,
                         `Where.exe python`,
                         `Where.exe python3`,
                         `(Get-ChildItem Env:Path).Value`,
                         `(Get-ChildItem Env:PATH).Value`,
-                        `powershell -Command "(Get-Command python).Source"`,
-                        `powershell -Command "(Get-Command python3).Source"`,
+                        `(Get-Command powershell).Source`,
                         `(Get-Command python).Source`,
                         `(Get-Command python3).Source`,
+                        `Get-Command powershell`,
                         `Get-Command python`,
                         `Get-Command python3`,
                         `python --version`,
                         `python3 --version`,
                     ];
-                    for (let i = 0; i < commands.length; i++) {
-                        console.log('-'.repeat(20));
-                        console.log('CommandTest:', commands[i]);
-                        console.log(await execTest(commands[i]));
+                    let commandList = [
+                        ...commands,
+                        ...commands.map(line => {
+                            if (!powershellpath) return;
+                            return `'${powershellpath}' -Command "${line}"`
+                        }).filter(Boolean),
+                    ];
+                    let resultList = [];
+                    for (let i = 0; i < commandList.length; i++) {
+                        let result = await execTest(commandList[i]);
+                        result.command = commandList[i];
+                        resultList.push(result);
                     }
-                    console.log('-'.repeat(20));
-                    console.log(await getPowerShellPath());
-                    console.log('-'.repeat(20));
-                    console.log('Thank you.')
+                    console.log('-'.repeat(80));
+                    console.log(`확인해봐주셔서 감사합니다.`);
+                    console.log(`여기에서부터`);
+                    console.log(JSON.stringify(resultList))
+                    console.log(`여기까지의 내용을`);
+                    console.log(`코드깎는노인의 이메일 monogatree@gmail.com로 보내주시거나 댓글로 첨부 부탁드립니다. 감사합니다.`);
+                    console.log('-'.repeat(80));
                 })();
                 process.exit(0);
                 return;
