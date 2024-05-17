@@ -16,7 +16,8 @@ Welcome to aiexe, the cutting-edge command-line interface (CLI) tool that integr
 8. [Additional Python Environment Setup](#additional-python-environment-setup)
 9. [Contribute](#contribute)
 10. [Support](#support)
-11. [Subscribe](#subscribe)
+11. [Change Log](#change-log)
+12. [Subscribe](#subscribe)
 
 ## Watch Our Demo
 Watch our demo video on YouTube to get a quick overview of what aiexe can do for you! Click [here](https://www.youtube.com/watch?v=dvx-gFx6nUw) to watch the video.  
@@ -207,6 +208,28 @@ Thank you for your contributions to the development and enhancement of `aiexe`!
 ## Support
 
 If you need help or have any questions, please open an issue in the GitHub repository.
+
+## Change Log
+
+### Version 1.0.138
+- Improved PowerShell and Bash command configurations with `makeVEnvCmd` function.
+- Enhanced `spawn` option handling for command arrays.
+
+### Version 1.0.136
+- Added multiple PowerShell and Python path debug commands.
+- Updated debugging logic for enhanced path verification.
+
+### Version 1.0.134
+- Improved token estimation and splitting logic.
+- Enhanced error message handling and context window management.
+
+### Version 1.0.132
+- Added `typespace` function for improved string validation.
+- Switched from `typeone` to `typespace` for `PYTHON_VENV_PATH` validation.
+
+### Version 1.0.130
+- Added `getPowerShellPath` function for better PowerShell path handling.
+- Enhanced virtual environment command handling for Windows.
 
 ## Subscribe
 
