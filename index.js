@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* global process */
 /* eslint-disable no-unused-vars, no-unreachable, no-constant-condition */
-import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
+import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text, isModelLlamas } from './aiFeatures.js'
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, execPlain, getPowerShellPath } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
@@ -30,7 +30,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.141'; // version
+    const VERSION = '1.0.142'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -221,7 +221,7 @@ import os from 'os';
                             }
                         }
                         let source = options.source;
-                        if (!(USE_LLM !== 'ollama')) {
+                        if (await isModelLlamas()) {
                             source = source !== "auto" ? source : await languageDetector(input);
                             if (source?.length !== 2) return;
                         } else {
@@ -240,7 +240,7 @@ import os from 'os';
                                     const parsed = JSON.parse(eres.split('#LANGCODE#').join(sourceCode));
                                     const messages = [];
                                     messages.push(parsed[0]);
-                                    USE_LLM !== 'ollama' ? null : [greetings, whatAreYouDoing, howAreYou].forEach(obj => {
+                                    !(await isModelLlamas()) ? null : [greetings, whatAreYouDoing, howAreYou].forEach(obj => {
                                         messages.push({ role: 'user', content: obj[source] });
                                         messages.push({ role: 'assistant', content: obj[options.destination] });
                                     })
@@ -482,9 +482,9 @@ import os from 'os';
                                     role: "user",
                                     stdout: `${threeticks}stdout\n${stdout}\n${threeticks}${stderr ? `\n\n${threeticks}stderr\n${stderr}\n${threeticks}` : ''}`,
                                     content: `
-                                    ${USE_LLM === 'ollama' ? `이전에 제공한 코드를 실행하여 다음과 같은 결과를 얻었습니다.` : `I executed the code you provided earlier and obtained the following results:`}
+                                    ${await isModelLlamas() ? `이전에 제공한 코드를 실행하여 다음과 같은 결과를 얻었습니다.` : `I executed the code you provided earlier and obtained the following results:`}
                                     ${'\n\n' + `{{STDOUT}}` + '\n\n'}
-                                    ${USE_LLM === 'ollama' ?
+                                    ${await isModelLlamas() ?
                                             `이 결과가 정확하고 예상한 대로인지 확인해 주시겠습니까? 또한, 이러한 결과가 코드의 맥락과 우리가 해결하려는 문제에 대해 무엇을 의미하는지 설명해주세요.\n지침\n- 한국어 이외의 다른 언어는 포함하지 마세요.\n- 오직 대한민국의 공식 언어인 한국어로만 모든것을 설명하세요.` :
                                             `Could you please confirm if these results are correct and as expected? Additionally, I would greatly appreciate it if you could explain what these results signify in the context of the code and the problem we are trying to solve.\n\nINSTRUCTION\n- If user's request is written in korean, then response in korean.`
                                         }

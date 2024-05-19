@@ -7,6 +7,10 @@ export const responseTokenRatio = 0.3; // 답변에 사용할 토큰 비율이�
 export const preprocessing = `preprocessing`;
 export const traceError = false; // 배포시 false
 export const contextWindows = {
+    "llama3-8b-8192": 8192,
+    "llama3-70b-8192": 8192,
+    // "mixtral-8x7b-32768": 32768,
+    "gemma-7b-it": 8192,
     "mixtral-8x7b-32768": 32768,
     "llama3:latest": 8192,
     "llama3:8b-instruct-q8_0": 8192,
@@ -20,6 +24,13 @@ export const contextWindows = {
     "claude-3-sonnet-20240229": 200000,
     "claude-3-haiku-20240307": 200000,
 };
+export const llamaFamily = [
+    "llama3-8b-8192",
+    "llama3-70b-8192",
+    "llama3:latest",
+    "llama3:8b-instruct-q8_0",
+    "llama3:70b",
+];
 export const colors = {
     "comment": "#5e6687",
     "keyword": "#c76b29",

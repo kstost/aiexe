@@ -4,7 +4,7 @@ import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv 
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
 import { createVENV, doctorCheck, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
-import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
+import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable, llamaFamily } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
@@ -422,13 +422,13 @@ export async function combindMessageHistory(summary, messages_, history, askforc
                     `The user will run the python code you will provide, so you should only provide python code that can be executed.  `,
                     ``,
                     `## INSTRUCTION:`,
-                    `- Response only the python code.`,
-                    `- As import modules, use try-except to first check whether the module you want to use exists, and if it does not exist, include logic to install it as a subprocess not the way commanding in Jupyter Notebooks like \`!pip\``,
-                    `- Please avoid using commands that only work in interactive environments like Jupyter Notebooks, especially those starting with \`!\`, in standard Python script files.`,
+                    `- Respond only with the Python code.`,
+                    `- When importing modules, use try-except blocks to first check whether the module exists. If it does not exist, include logic to install it as a subprocess, not using Jupyter Notebook commands like \`!pip\`.`,
+                    `- Avoid using commands that only work in interactive environments like Jupyter Notebooks, especially those starting with \`!\`, in standard Python script files.`,
                     `- Always use the explicit output method via the print function, not expression evaluation, when your Python code displays results.`,
-                    `- Code should include all dependencies such as variables and functions required for proper execution.`,
-                    `- Never explain about response`,
-                    `- The code must contain all dependencies such as referenced modules, variables, functions, and classes in one code.`,
+                    `- Include all dependencies such as variables and functions required for proper execution.`,
+                    `- Do not provide any explanations about the response.`,
+                    `- Ensure the code contains all dependencies such as referenced modules, variables, functions, and classes in one complete script.`,
                     `- The entire response must consist of only one complete form of code.`,
                     `${isWindows() ? `The Python code will run on Microsoft Windows Environment\n` : ''}`,
                     `## CODING CONVENTIONS:`,
@@ -444,7 +444,7 @@ export async function combindMessageHistory(summary, messages_, history, askforc
                     `    ${threeticks}`,
                     ``,
                     `## Exception`,
-                    `- As an exception, if you request a simple explanation that does not require Python code to resolve the user's request, please respond with an explanation in natural language rather than Python code.`,
+                    `- As an exception, if the user requests a simple explanation that doesn't require Python code to resolve, please respond using natural language instead of Python code.`,
                     ``,
                     `${summary ? `## SUMMARY SO FAR:` : ''}`,
                     `${summary ? summary : ''}`,
@@ -752,6 +752,10 @@ export async function code_generator(summary, messages_ = [], history = [], askf
     const rst = { raw, err, correct_code: !!python_code, python_code, abort, usedModel: await getModelName() };
     return rst;
 }
+export async function isModelLlamas() {
+    const model = await getModelName();
+    return llamaFamily.includes(model);
+}
 export async function getModelName() {
     const USE_LLM = await getVarVal('USE_LLM');
     if (USE_LLM === 'openai') return await getVarVal('OPENAI_MODEL');
@@ -777,14 +781,25 @@ export function resultTemplate(result) {
     return [
         `# The code you provided caused the error.`,
         ``,
-        `## stdout:`,
-        `${result.stdout}`,
+        result.stdout ? `## stdout:` : ``,
+        result.stdout ? `${result.stdout}` : ``,
         ``,
-        `## stderr:`,
-        `${result.stderr}`,
+        result.stderr ? `## stderr:` : ``,
+        result.stderr ? `${result.stderr}` : ``,
         ``,
         `## WHAT TO DO:`,
-        `- fix it!`,
+        `- Fix the problem.`,
+        ``,
+        `## INSTRUCTION:`,
+        `- Respond only with the corrected Python code.`,
+        `- When importing modules, use try-except blocks to first check whether the module exists. If it does not exist, include logic to install it as a subprocess, not using Jupyter Notebook commands like \`!pip\`.`,
+        `- Avoid using commands that only work in interactive environments like Jupyter Notebooks, especially those starting with \`!\`, in standard Python script files.`,
+        `- Always use the explicit output method via the print function, not expression evaluation, when your Python code displays results.`,
+        `- Include all dependencies such as variables and functions required for proper execution.`,
+        `- Do not provide any explanations about the response.`,
+        `- Ensure the code contains all dependencies such as referenced modules, variables, functions, and classes in one complete script.`,
+        `- The entire response must consist of only one complete form of code.`,
+        ``,
     ].join('\n').trim()
 }
 export async function axiosPostWrap() {
