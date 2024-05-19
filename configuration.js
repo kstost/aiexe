@@ -247,12 +247,7 @@ export async function setVarVal(key, value) {
     const typespace = str => {
         for (let i = 0; i < str.length; i++) {
             const ch = str[i];
-            if (!(ch >= 'A' && ch <= 'Z') && // 대문자 알파벳
-                !(ch >= 'a' && ch <= 'z') && // 소문자 알파벳
-                !(ch >= '0' && ch <= '9') && // 숫자
-                ch !== ' ' && ch !== '-' && ch !== '_' && ch !== '/' && ch !== '.' && ch !== ':' && (isWindows() ? ch !== '\\' : '/')) {
-                return false;
-            }
+            if (ch === '"') return false;
         }
         return true;
     };
