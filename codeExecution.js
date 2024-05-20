@@ -46,14 +46,14 @@ export async function moduleValidator(code_file_path) {
 
     def readFile(file_path):
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+            raise FileNotFoundError(f"file not found: {file_path}")
 
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             return content
         except IOError as e:
-            raise IOError(f"파일을 읽는 동안 오류가 발생했습니다: {file_path}{e}")
+            raise IOError(f"An error occurred while reading the file: {file_path}{e}")
     
     def extract_imports_from_ast(python_code):
         tree = ast.parse(python_code)
@@ -82,21 +82,18 @@ export async function moduleValidator(code_file_path) {
     def generate_install_commands(non_existent_modules):
         commands = []
         for module in non_existent_modules:
-            # PyPI에서 패키지 이름을 확인
+            # Check package name in PyPI
             package_name = get_package_name_from_pypi(module)
             if package_name is None:
-                # 기본적으로 모듈 이름을 패키지 이름으로 사용
+                # By default, use the module name as the package name
                 package_name = module
             commands.append(f'pip install {package_name}')
         return commands
     
-    # 예제 파이썬 코드
-    python_code = readFile("${code_file_path}")
+    python_code = readFile("${code_file_path.split('\\').join('/')}")
     
-    # 모듈 추출
     modules = extract_imports_from_ast(python_code)
     
-    # 모듈 존재 여부 확인
     non_existent_modules = check_modules_existence(modules)
     print(json.dumps(non_existent_modules))
     `;
