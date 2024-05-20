@@ -369,6 +369,7 @@ export async function turnOnOllamaAndGetModelList() {
         try {
             return await axios.get('http://localhost:11434/api/tags');
         } catch (e) {
+            singleton.debug({ error: e }, 'ollama_server_test');
             printError(e);
             if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                 await new Promise(resolve => setTimeout(resolve, 1000));

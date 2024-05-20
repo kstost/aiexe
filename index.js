@@ -30,7 +30,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.144'; // version
+    const VERSION = '1.0.145'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -102,7 +102,10 @@ import os from 'os';
         .action(async (prompt, options) => {
 
             singleton.options = options;
-            if (singleton?.options?.debug === 'python_dev_test') {
+            if (singleton?.options?.debug === 'ollama_server_test') {
+                let list = await turnOnOllamaAndGetModelList();
+                singleton.debug({ list }, 'ollama_server_test');
+                singleton.debug({ listData: JSON.stringify(list.data) }, 'ollama_server_test');
                 return;
             }
             if (singleton?.options?.debug === 'python_path_test_for_windows') {
