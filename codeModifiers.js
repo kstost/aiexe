@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
-import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, getPowerShellPath } from './codeExecution.js'
+import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, getPowerShellPath, generateModuleInstallCode } from './codeExecution.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
 import { createVENV, doctorCheck, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
@@ -25,7 +25,7 @@ import os from 'os';
 
 
 
-export async function isCorrectCode(python_code, list, justStripFench) {
+export async function isCorrectCode(python_code, list, justStripFench, moduleInstall = true) {
     const rtcode = { python_code: '', err: '', };
     if ((typeof python_code) !== 'string') return justStripFench ? '' : rtcode;
     if (python_code.trim() === '') return justStripFench ? '' : rtcode;
@@ -90,7 +90,19 @@ export async function isCorrectCode(python_code, list, justStripFench) {
                     rtcode.err = err;
                     rtcode.syntaxtest = { code: python_code, error: err };
                 } else {
-                    rtcode.python_code = python_code;
+                    if (moduleInstall) {
+                        let importcode = await generateModuleInstallCode(`${venv_path}` + '/._tmpcode.py');
+                        rtcode.python_code = importcode.count ? [
+                            `# ${'-'.repeat(10)} Missing Module Installataion ${'-'.repeat(10)}`,
+                            `# The following module installation code installs any missing modules required for this Python code.`,
+                            `# Please ensure that the module names in the installation commands are correct before running the code.`,
+                            importcode.code,
+                            `# ${'-'.repeat(10)}------------------------------${'-'.repeat(10)}`,
+                            python_code
+                        ].join('\n') : python_code;
+                    } else {
+                        rtcode.python_code = python_code;
+                    }
                 }
             }
         }

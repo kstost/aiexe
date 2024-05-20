@@ -8,6 +8,7 @@ import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRati
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
+import pyModuleTable from './pyModuleTable.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
 import axios from 'axios';
@@ -26,6 +27,84 @@ import { spawn } from 'child_process';
 import os from 'os';
 
 
+export async function generateModuleInstallCode(codefile) {
+    let adf = await moduleValidator(codefile);
+    let imcode = [];
+    imcode.push('try:')
+    imcode.push('   import subprocess')
+    adf.forEach(mname => imcode.push(`   subprocess.run(['pip', 'install', '${pyModuleTable[mname] ? pyModuleTable[mname] : mname}'])`));
+    imcode.push('except Exception as e:\n   pass')
+    return { count: adf.length, code: imcode.join('\n') };
+}
+export async function moduleValidator(code_file_path) {
+    const python_code = `if True:
+    import os
+    import ast
+    import importlib.util
+    import subprocess
+
+    def readFile(file_path):
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            return content
+        except IOError as e:
+            raise IOError(f"파일을 읽는 동안 오류가 발생했습니다: {file_path}{e}")
+    
+    def extract_imports_from_ast(python_code):
+        tree = ast.parse(python_code)
+        imports = set()
+        
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imports.add(alias.name.split('.')[0])
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imports.add(node.module.split('.')[0])
+        
+        return sorted(imports)
+    
+    def check_modules_existence(modules):
+        non_existent_modules = []
+        for module in modules:
+            if importlib.util.find_spec(module) is None:
+                non_existent_modules.append(module)
+        return non_existent_modules
+    
+    def get_package_name_from_pypi(module_name):
+        return module_name
+    
+    def generate_install_commands(non_existent_modules):
+        commands = []
+        for module in non_existent_modules:
+            # PyPI에서 패키지 이름을 확인
+            package_name = get_package_name_from_pypi(module)
+            if package_name is None:
+                # 기본적으로 모듈 이름을 패키지 이름으로 사용
+                package_name = module
+            commands.append(f'pip install {package_name}')
+        return commands
+    
+    # 예제 파이썬 코드
+    python_code = readFile("${code_file_path}")
+    
+    # 모듈 추출
+    modules = extract_imports_from_ast(python_code)
+    
+    # 모듈 존재 여부 확인
+    non_existent_modules = check_modules_existence(modules)
+    print(json.dumps(non_existent_modules))
+    `;
+    let resutl = await shell_exec(python_code, false, true);
+    try {
+        return JSON.parse(resutl.stdout);
+    } catch { }
+    return [];
+}
 export async function makePreprocessingCode() {
     const venv_path = await getPythonVenvPath();
     if (!venv_path) return;
@@ -41,7 +120,7 @@ export async function makePreprocessingCode() {
         `# ${'-'.repeat(80)}`,
     ].join('\n'));
 }
-export async function shell_exec(python_code, only_save = false) {
+export async function shell_exec(python_code, only_save = false, silent = false) {
     const venv_path = await getPythonVenvPath();
     if (!venv_path) return;
     return new Promise(async resolve => {
@@ -60,7 +139,7 @@ export async function shell_exec(python_code, only_save = false) {
         const arg = await makeVEnvCmd(pythonCmd, true);
         const env = Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' });
         const child = spawn(...arg, { env, stdio: ['inherit', 'pipe', 'pipe'] });
-        attatchWatcher(child, resolve, python_code);
+        attatchWatcher(child, resolve, python_code, silent);
     });
 }
 export async function execInVenv(command, app) {
@@ -74,19 +153,19 @@ export async function execInVenv(command, app) {
         attatchWatcher(child, resolve);
     });
 }
-export function attatchWatcher(child, resolve, python_code) {
+export function attatchWatcher(child, resolve, python_code, silent = false) {
     const stdout = [];
     const stderr = [];
     child.stdout.on('data', function (data) {
         oraStop();
         stdout.push(data);
-        process.stdout.write(chalk.greenBright(data));
+        if (!silent) process.stdout.write(chalk.greenBright(data));
     });
     child.stderr.on('data', function (data) {
         oraStop();
         if (data.indexOf(`warnings.warn("`) > -1 && data.indexOf(`Warning: `) > -1) return;
         stderr.push(data);
-        process.stderr.write(chalk.red(data));
+        if (!silent) process.stderr.write(chalk.red(data));
     });
     child.on('close', function (code) {
         oraStop();

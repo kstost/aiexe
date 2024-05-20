@@ -423,7 +423,6 @@ export async function combindMessageHistory(summary, messages_, history, askforc
                     ``,
                     `## INSTRUCTION:`,
                     `- Respond only with the Python code.`,
-                    `- When importing modules, use try-except blocks to first check whether the module exists. If it does not exist, include logic to install it as a subprocess, not using Jupyter Notebook commands like \`!pip\`.`,
                     `- Avoid using commands that only work in interactive environments like Jupyter Notebooks, especially those starting with \`!\`, in standard Python script files.`,
                     `- Always use the explicit output method via the print function, not expression evaluation, when your Python code displays results.`,
                     `- Include all dependencies such as variables and functions required for proper execution.`,
@@ -431,17 +430,6 @@ export async function combindMessageHistory(summary, messages_, history, askforc
                     `- Ensure the code contains all dependencies such as referenced modules, variables, functions, and classes in one complete script.`,
                     `- The entire response must consist of only one complete form of code.`,
                     `${isWindows() ? `The Python code will run on Microsoft Windows Environment\n` : ''}`,
-                    `## CODING CONVENTIONS:`,
-                    `- STANDARD CODING STYLE TO IMPORT:`,
-                    `    If you want to use a module in your code, import the module using the following logic before using it.`,
-                    `    ${threeticks}python`,
-                    `    try:`,
-                    `        import package_name`,
-                    `    except ImportError:`,
-                    `        import subprocess`,
-                    `        subprocess.run(['pip', 'install', 'package_name'])`,
-                    `    package_name # using of the module after importing logic`,
-                    `    ${threeticks}`,
                     ``,
                     `## Exception`,
                     `- As an exception, if the user requests a simple explanation that doesn't require Python code to resolve, please respond using natural language instead of Python code.`,
@@ -562,6 +550,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
     const USE_LLM = await getVarVal('USE_LLM');
     let python_code = '';
     let abort = false;
+    let moduleInstall = true;
     try {
         while (true) {
             let messages = await combindMessageHistory(summary, messages_, history, askforce, contextWindowRatio);
@@ -579,6 +568,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
             */
             const reGenerateMode = askforce === 're-generate';
             if (askforce === 'responsed_code_is_invalid_syntax') {
+                moduleInstall = true;
                 let request = (await ask_prompt_text(`What can I do for you?`)).trim(); // 이 물음에서 진행했을때 `Nothing responsed`의 상황이 만들어진다.
                 if (request) {
                     defineNewMission(request);
@@ -590,6 +580,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 continue;
             }
             else if (askforce === 'responsed_opinion') {
+                moduleInstall = true;
                 let request = (await ask_prompt_text(`What can I do for you?`)).trim();
                 if (request) {
                     defineNewMission(request);
@@ -601,6 +592,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 continue;
             }
             else if (askforce === 'run_code_causes_error' || askforce === 'nothing_responsed') {
+                moduleInstall = false;
                 print('Would you like to request the creation of a revised code?')
                 print('Please select an option:')
                 setContinousNetworkTryCount(0);
@@ -740,7 +732,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
     } catch (errorInfo) { printError(errorInfo); }
     let err = '';
     let raw = python_code;
-    let correct_code = await isCorrectCode(python_code, ['python3', 'python2', 'python', 'py', ''], false);
+    let correct_code = await isCorrectCode(python_code, ['python3', 'python2', 'python', 'py', ''], false, moduleInstall);
     if (correct_code.python_code) python_code = correct_code.python_code;
     if (correct_code.err) python_code = '';
     if (correct_code.err) err = correct_code.err;
@@ -792,7 +784,6 @@ export function resultTemplate(result) {
         ``,
         `## INSTRUCTION:`,
         `- Respond only with the corrected Python code.`,
-        `- When importing modules, use try-except blocks to first check whether the module exists. If it does not exist, include logic to install it as a subprocess, not using Jupyter Notebook commands like \`!pip\`.`,
         `- Avoid using commands that only work in interactive environments like Jupyter Notebooks, especially those starting with \`!\`, in standard Python script files.`,
         `- Always use the explicit output method via the print function, not expression evaluation, when your Python code displays results.`,
         `- Include all dependencies such as variables and functions required for proper execution.`,
