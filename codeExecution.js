@@ -28,11 +28,12 @@ import os from 'os';
 
 
 export async function generateModuleInstallCode(codefile) {
+    function repld(mn) { return mn.split('_').join('-'); }
     let adf = await moduleValidator(codefile);
     let imcode = [];
     imcode.push('try:')
     imcode.push('   import subprocess')
-    adf.forEach(mname => imcode.push(`   subprocess.run(['pip', 'install', '${pyModuleTable[mname] ? pyModuleTable[mname] : mname}'])`));
+    adf.forEach(mname => imcode.push(`   subprocess.run(['pip', 'install', '${repld(`${pyModuleTable[mname] ? pyModuleTable[mname] : mname}`)}'])`));
     imcode.push('except Exception as e:\n   pass')
     return { count: adf.length, code: imcode.join('\n') };
 }

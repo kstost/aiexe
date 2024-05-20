@@ -90,6 +90,7 @@ export async function isCorrectCode(python_code, list, justStripFench, moduleIns
                     rtcode.err = err;
                     rtcode.syntaxtest = { code: python_code, error: err };
                 } else {
+                    moduleInstall = true;
                     if (moduleInstall) {
                         let importcode = await generateModuleInstallCode(`${venv_path}` + '/._tmpcode.py');
                         rtcode.python_code = importcode.count ? [
