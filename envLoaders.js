@@ -154,11 +154,17 @@ export async function installProcess() {
 }
 export async function realworld_which_python() {
     singleton.debug({ head: '-'.repeat(10) }, 'realworld_which_python');
-    const list = ['python', 'python3'];
+    let list = ['python', 'python3'];
+
+    if (isWindows()) list = ['python', 'python3', '.python', '.python3'];
+    if (singleton?.options?.debug === 'pmode1') list = ['python', 'python3'];
+    if (singleton?.options?.debug === 'pmode2') list = ['.python', '.python3'];
+    if (singleton?.options?.debug === 'pmode3') list = ['.python', '.python3', 'python', 'python3'];
+
     for (let i = 0; i < list.length; i++) {
         const name = list[i];
         singleton.debug({ name }, 'realworld_which_python');
-        const ppath = await which(name);
+        const ppath = name[0] === '.' ? name.substring(1, Infinity) : await which(name);
         singleton.debug({ path: ppath }, 'realworld_which_python');
         if (!ppath) continue;
         if (isBadStr(ppath)) throw ppath;
