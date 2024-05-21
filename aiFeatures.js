@@ -339,7 +339,7 @@ export async function ollamaChat(messages, parameters = { temperature: 0 }) {
             let tempMessageForIndicator = oraBackupAndStopCurrent();
             let indicator = ora((`Requesting ${chalk.bold(OLLAMA_MODEL)}`)).start()
             try {
-                airesponse = await axiosPostWrap('http://localhost:11434/api/chat', { model: OLLAMA_MODEL, stream: false, options, messages });
+                airesponse = await axiosPostWrap('http://127.0.0.1:11434/api/chat', { model: OLLAMA_MODEL, stream: false, options, messages });
                 indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(OLLAMA_MODEL)} succeeded`));
                 oraStart(tempMessageForIndicator);
                 break;
@@ -367,7 +367,7 @@ export async function turnOnOllamaAndGetModelList() {
     while (count >= 0) {
         count--;
         try {
-            return await axios.get('http://localhost:11434/api/tags');
+            return await axios.get('http://127.0.0.1:11434/api/tags');
         } catch (e) {
             singleton.debug({ error: e }, 'ollama_server_test');
             printError(e);
