@@ -2,12 +2,12 @@
 /* global process */
 /* eslint-disable no-unused-vars, no-unreachable, no-constant-condition */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text, isModelLlamas } from './aiFeatures.js'
-import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, execPlain, getPowerShellPath, moduleValidator } from './codeExecution.js'
+import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, execPlain, getPowerShellPath, moduleValidator, generateModuleInstallCode } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
-import { createVENV, doctorCheck, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
+import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
-import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
+import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination, installModules } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
 import singleton from './singleton.js';
@@ -30,7 +30,7 @@ import os from 'os';
 (async () => {
     Object.keys(colors).forEach(key => colors[key] = chalk.hex(colors[key]));
     const program = new Command();
-    const VERSION = '1.0.148'; // version
+    const VERSION = '1.0.150'; // version
     //-----------------------------------------------
     //-----------------------------------------------
     function codeDisplay(mission, python_code, code_saved_path) {
@@ -56,6 +56,14 @@ import os from 'os';
         return !!(await getVarVal('AIEXEDEBUGMODE'));
     }
     async function showLogo() {
+        let latestVersion;
+        try {
+            const update_check = await getVarVal('UPDATE_CHECK')
+            if (!update_check || update_check.toLowerCase() === 'no') throw null;
+            let res = await axios.get(`https://raw.githubusercontent.com/kstost/aiexe/main/package.json`);
+            latestVersion = (res.data.version);
+            if (latestVersion === VERSION) latestVersion = null;
+        } catch { }
         await figlet.text(
             "AI.EXE",
             {
@@ -71,8 +79,14 @@ import os from 'os';
                 content.push(chalk.hex('#dddddd')(data));
                 content.push(chalk.hex('#dddddd')(`(c) 2024 코드깎는노인's AI Laboratories`) +
                     chalk.hex('#dddddd')(`\n  - Email: monogatree@gmail.com`) +
-                    chalk.hex('#dddddd')(`\n  - YouTube: https://www.youtube.com/@codeteller`)
+                    chalk.hex('#dddddd')(`\n  - YouTube: https://www.youtube.com/@codeteller`) +
+                    chalk.hex('#dddddd')(`\n  - GitHub: https://github.com/kstost/aiexe`)
                 );
+                if (latestVersion) {
+                    content.push('');
+                    content.push(chalk.hex('#dddddd')(chalk.yellowBright.bold(`Version ${latestVersion} update is now available.`)));
+                    content.push(chalk.hex('#dddddd')('You can update by ' + chalk.yellowBright.bold(isWindows() ? `npm install aiexe -g` : `sudo npm install aiexe -g`)));
+                }
                 print(chalk.bgMagenta(boxen(content.join('\n'), {
                     padding: 1,
                     margin: 0,
@@ -312,10 +326,8 @@ import os from 'os';
                         }
                     } catch (errorInfo) { printError(errorInfo); debugMode = null; }
                 }
-                if (!await doctorCheck(false)) {
-                    await doctorCheck(true);
-                    return;
-                }
+                await checkPythonForTermination();
+                await installProcess(false);
                 const _promp_t = prompt;
                 if (_promp_t) {
                     let mission;
@@ -458,6 +470,17 @@ import os from 'os';
                             }
                             if (index === 3) { break; }
                             print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
+                            if (true) {
+                                let importcode = await generateModuleInstallCode(python_code, true);
+                                if (importcode.codename.length) {
+                                    let aoidsf = {};
+                                    importcode.codename.forEach(name => aoidsf[name] = '');
+                                    print(chalk.bold(`Missing Module Installataion`));
+                                    print(`The following module installation commands installs any missing modules required for this Python code.`);
+                                    print(`Please ensure that the module names in the installation commands are correct before running the command.`);
+                                    await installModules('', aoidsf)
+                                }
+                            }
                             const result = await shell_exec(python_code, false);
                             print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
                             if (result?.code === 0) {
@@ -512,6 +535,7 @@ import os from 'os';
                     print(chalk.gray(`Subscribe my YouTube Channel(https://www.youtube.com/@codeteller)`));
                 }
             }
+            await showLogo();
             if (options.resetconfig) {
                 await disableAllVariable();
 
@@ -530,17 +554,12 @@ import os from 'os';
 
                 try { await installProcess(); } catch (errorInfo) { printError(errorInfo); }
             }
-            else if (prompt) {
-                await mainApp(prompt);
-            } else {
-                await showLogo();
-                try {
-                    await installProcess();
-                    print('')
-                    const request = await ask_prompt_text(` What can I do for you?.`);
-                    await mainApp(request);
-                } catch (errorInfo) { printError(errorInfo); }
-            }
+            try {
+                await installProcess();
+                print('')
+                const request = prompt ? prompt : await ask_prompt_text(`What can I do for you?.`);
+                await mainApp(request);
+            } catch (errorInfo) { printError(errorInfo); }
         });
     program.parse(process.argv);
 })();

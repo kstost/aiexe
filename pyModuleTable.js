@@ -1,10 +1,16 @@
 let data = {
-    "PIL": "pillow",
-    "cv2": "opencv-python",
-    "bs4": "beautifulsoup4",
-    "sklearn": "scikit-learn",
-    "yaml": "PyYAML",
-    "dateutil": "python-dateutil",
+   "PIL": "pillow",
+   "cv2": "opencv-python",
+   "bs4": "beautifulsoup4",
+   "sklearn": "scikit-learn",
+   "yaml": "PyYAML",
+   "dateutil": "python-dateutil",
+   "fitz": "PyMuPDF",
+   'tabula': 'tabula-py',
+   'youtube_transcript_api': 'youtube-transcript-api',
+   'skimage': 'scikit-image',
+   'kivy': 'Kivy',
+   'PyQt5': 'PyQt5',
 };
 
 //-----------------------------------------------------------------------------------------------
@@ -1365,10 +1371,10 @@ z3c:z3c.zcmlhook
 zmq:pyzmq
 zopyx:zopyx.textindexng3
 `.split('\n').forEach(setline => {
-    setline = setline.trim();
-    if (!setline) return;
-    let [n, m] = setline.split(':');
-    data[n] = m.split('_').join('-');
+   setline = setline.trim();
+   if (!setline) return;
+   let [n, m] = setline.split(':');
+   data[n] = m.split('_').join('-');
 });
 //-----------------------------------------------------------------------------------------------
 export default data;

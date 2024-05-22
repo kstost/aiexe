@@ -3,7 +3,7 @@
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
-import { createVENV, doctorCheck, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
+import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable, llamaFamily } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
@@ -660,9 +660,8 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     }
                     oraFail(chalk.redBright(message));
                     if (e.response.data.error.code === 'invalid_api_key') {
-                        let answer = await ask_prompt_text(`What is your OpenAI API key for accessing OpenAI services?`);
                         await disableVariable('OPENAI_API_KEY');
-                        await setVarVal('OPENAI_API_KEY', answer);
+                        await installProcess(false);
                         continue;
                     } else {
                         abort = true;
@@ -685,9 +684,8 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     }
                     oraFail(chalk.redBright(message));
                     if (e.response.data.error.code === 'invalid_api_key') {
-                        let answer = await ask_prompt_text(`What is your Groq API key for accessing Groq services?`);
                         await disableVariable('GROQ_API_KEY');
-                        await setVarVal('GROQ_API_KEY', answer);
+                        await installProcess(false);
                         continue;
                     } else {
                         abort = true;
@@ -702,9 +700,8 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     oraFail(chalk.redBright(e.response.data.error.message));
                     // e.response.data.error 컨텍스트 윈도우를 넘치는 경우에 대한 처리 필요.
                     if (e.response.data.error.type === 'authentication_error') {
-                        let answer = await ask_prompt_text(`What is your Anthropic API key for accessing Anthropic services?`);
                         await disableVariable('ANTHROPIC_API_KEY');
-                        await setVarVal('ANTHROPIC_API_KEY', answer);
+                        await installProcess(false);
                         continue;
                     } else {
                         abort = true;
@@ -718,6 +715,11 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 } catch (e) {
                     printError(e);
                     oraFail(chalk.redBright(e.response.data.error.message));
+                    if (e.response.data.error.message.indexOf('API key not valid') > -1) {
+                        await disableVariable('GOOGLE_API_KEY');
+                        await installProcess(false);
+                        continue;
+                    }
                     // e.response.data.error 컨텍스트 윈도우를 넘치는 경우에 대한 처리 필요.
                     if (e.response.data.error.status === 'INVALID_ARGUMENT') {
                         // 이 상황이 꼭 API키가 잘못되었을경우만 있는것은 아니다.

@@ -44,79 +44,46 @@ export async function createVENV() {
         throw new Error('Creating VENV fail');
     }
 }
-
-export async function doctorCheck(display = false) {
-    const USE_LLM = await getVarVal('USE_LLM');
-    const venv_path = await getVarVal('PYTHON_VENV_PATH');
-    const python_interpreter = await checkPythonForTermination();
-    let doctorOk = true;
-    if (!python_interpreter) {
-        if (display) console.error(chalk.yellowBright(" - Python is required to use this app."));
-        doctorOk = false;
+export async function multipleChoicePrompt(key, prompt, options, force = false) {
+    if (!key) {
+        print(chalk.bold(prompt));
+        return options[await promptChoices(options, `Enter your choice`, { cancel: false })];
     }
-    if (!USE_LLM) {
-        if (display) console.error(chalk.yellowBright(' - The "USE_LLM" environment variable is missing but required to specify the LLM vendor.'));
-        doctorOk = false;
-    }
-    if (USE_LLM === 'gemini') {
-        if (!await getVarVal('GOOGLE_API_KEY')) {
-            if (display) console.error(chalk.yellowBright(' - The "GOOGLE_API_KEY" environment variable is missing but required.'));
-            doctorOk = false;
-        }
-    }
-    if (USE_LLM === 'groq') {
-        if (!await getVarVal('GROQ_MODEL')) {
-            if (display) console.error(chalk.yellowBright(" - The 'GROQ_MODEL' environment variable is required and must specify the name of the LLM model."));
-            doctorOk = false;
-        }
-        if (!await getVarVal('GROQ_API_KEY')) {
-            if (display) console.error(chalk.yellowBright(' - The "GROQ_API_KEY" environment variable is missing but required.'));
-            doctorOk = false;
-        }
-    }
-    if (USE_LLM === 'anthropic') {
-        if (!await getVarVal('ANTHROPIC_API_KEY')) {
-            if (display) console.error(chalk.yellowBright(' - The "ANTHROPIC_API_KEY" environment variable is missing but required.'));
-            doctorOk = false;
-        }
-        if (!await getVarVal('ANTHROPIC_MODEL')) {
-            if (display) console.error(chalk.yellowBright(' - The "ANTHROPIC_MODEL" environment variable is missing but required.'));
-            doctorOk = false;
-        }
-    }
-    if (USE_LLM === 'openai') {
-        if (!await getVarVal('OPENAI_MODEL')) {
-            if (display) console.error(chalk.yellowBright(" - The 'OPENAI_MODEL' environment variable is required and must specify the name of the LLM model."));
-            doctorOk = false;
-        }
-        if (!await getVarVal('OPENAI_API_KEY')) {
-            if (display) console.error(chalk.yellowBright(" - The 'OPENAI_API_KEY' environment variable is required and must contain the API Key for using OpenAI's LLM."));
-            doctorOk = false;
-        }
-    }
-    if (USE_LLM === 'ollama') {
-        if (!await getVarVal('OLLAMA_MODEL')) {
-            if (display) console.error(chalk.yellowBright(" - The environment variable 'OLLAMA_MODEL' is required and should contain the name of the LLM model."));
-            doctorOk = false;
-        }
-    }
-    if (!venv_path) {
-        if (display) console.error(chalk.yellowBright(" - The 'PYTHON_VENV_PATH' environment variable is required and should contain the path to the Python virtual environment."));
-        doctorOk = false;
-    } else {
-        try {
-            fs.readdirSync(`${venv_path}`);
-        } catch (errorInfo) {
-            printError(errorInfo);
-            if (display) console.error(chalk.yellowBright(` - ${venv_path} Python's venv folder is needed.`));
-            if (display) console.error(chalk.yellowBright(` - ${python_interpreter} -m venv "${venv_path}"`));
-            doctorOk = false;
-        }
-    }
-    return doctorOk;
+    if (!force) if (await isKeyInConfig(key)) return;
+    print(chalk.bold(prompt));
+    setContinousNetworkTryCount(0);
+    let index = await promptChoices(options, `Enter your choice`, { cancel: false });
+    await setVarVal(key, options[index].toLowerCase(), force);
 }
+export async function openEndedPrompt(key, prompt, force = false) {
+    if (!force) if (await isKeyInConfig(key)) return;
+    let answer = await ask_prompt_text(prompt);
+    await setVarVal(key, answer, force);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export async function disableAllVariable() {
-    const variables = ['GOOGLE_API_KEY', 'OPENAI_API_KEY', 'GROQ_API_KEY', 'USE_LLM', 'ANTHROPIC_API_KEY', 'PYTHON_VENV_PATH', 'OLLAMA_PROXY_SERVER', 'OLLAMA_MODEL', 'OPENAI_MODEL', 'GROQ_MODEL', 'ANTHROPIC_MODEL'];
+    const variables = ['UPDATE_CHECK', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'GROQ_API_KEY', 'USE_LLM', 'ANTHROPIC_API_KEY', 'PYTHON_VENV_PATH', 'OLLAMA_PROXY_SERVER', 'OLLAMA_MODEL', 'OPENAI_MODEL', 'GROQ_MODEL', 'ANTHROPIC_MODEL'];
     for (const variableName of variables) {
         await disableVariable(variableName);
     }
@@ -230,8 +197,9 @@ export async function isKeyInConfig(keyname) {
 
 
 
-export async function setVarVal(key, value) {
-    if (await isKeyInConfig(key)) return;
+export async function setVarVal(key, value, force = false) {
+    if (!force && await isKeyInConfig(key)) return;
+    if (force && await isKeyInConfig(key)) await disableVariable(key);
     const typeone = str => {
         for (let i = 0; i < str.length; i++) {
             const ch = str[i];
@@ -252,6 +220,7 @@ export async function setVarVal(key, value) {
         return true;
     };
     const regChecker = {
+        UPDATE_CHECK: typeone,
         USE_LLM: typeone,
         GOOGLE_API_KEY: typeone,
         OPENAI_API_KEY: typeone,

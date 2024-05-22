@@ -3,7 +3,7 @@
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
-import { createVENV, doctorCheck, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
+import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
@@ -25,17 +25,28 @@ import { Command } from 'commander';
 import { promises as fsPromises } from 'fs';
 import { spawn } from 'child_process';
 import os from 'os';
+import singleton from './singleton.js'
 
 
-export async function generateModuleInstallCode(codefile) {
-    function repld(mn) { return mn.split('_').join('-'); }
+export function repld(mn) { return mn.split('_').join('-'); }
+export function asPyModuleName(mname) {
+    return repld(`${pyModuleTable[mname] ? pyModuleTable[mname] : mname}`);
+}
+export async function generateModuleInstallCode(codefile, code = false) {
+    if (code) {
+        const venv_path = await getPythonVenvPath();
+        const pathd = `${venv_path}` + '/._module_requirements.py';
+        await fsPromises.writeFile(pathd, codefile);
+        codefile = pathd;
+    }
     let adf = await moduleValidator(codefile);
     let imcode = [];
     imcode.push('try:')
     imcode.push('   import subprocess')
-    adf.forEach(mname => imcode.push(`   subprocess.run(['pip', 'install', '${repld(`${pyModuleTable[mname] ? pyModuleTable[mname] : mname}`)}'])`));
+    adf.forEach(mname => imcode.push(`   subprocess.run(['pip', 'install', '${asPyModuleName(mname)}'])`));
     imcode.push('except Exception as e:\n   pass')
-    return { count: adf.length, code: imcode.join('\n') };
+    const packages = adf.map(mname => asPyModuleName(mname));
+    return { count: adf.length, code: imcode.join('\n'), packages, codename: adf };
 }
 export async function moduleValidator(code_file_path) {
     const python_code = `if True:
@@ -97,7 +108,8 @@ export async function moduleValidator(code_file_path) {
     non_existent_modules = check_modules_existence(modules)
     print(json.dumps(non_existent_modules))
     `;
-    let resutl = await shell_exec(python_code, false, true);
+    let resutl = await shell_exec(python_code, false, true, true);
+    // print(resutl);
     try {
         return JSON.parse(resutl.stdout);
     } catch { }
@@ -118,7 +130,7 @@ export async function makePreprocessingCode() {
         `# ${'-'.repeat(80)}`,
     ].join('\n'));
 }
-export async function shell_exec(python_code, only_save = false, silent = false) {
+export async function shell_exec(python_code, only_save = false, silent = false, orasilent = false) {
     const venv_path = await getPythonVenvPath();
     if (!venv_path) return;
     return new Promise(async resolve => {
@@ -130,12 +142,16 @@ export async function shell_exec(python_code, only_save = false, silent = false)
             `${python_code}`
         ].join('\n'));
         if (only_save) return resolve(scriptPath);
-        oraStart(`Executing code`);
+        if (!orasilent) oraStart(`Executing code`);
         const python_interpreter_ = await getPythonPipPath();
         if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
         const pythonCmd = `'${python_interpreter_}' -u '${scriptPath}'`;
         const arg = await makeVEnvCmd(pythonCmd, true);
         const env = Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' });
+        if (singleton?.options?.debug === 'shellexe') {
+            singleton.debug(arg, 'shellexe');
+            print(chalk.blueBright(python_code));
+        }
         const child = spawn(...arg, { env, stdio: ['inherit', 'pipe', 'pipe'] });
         attatchWatcher(child, resolve, python_code, silent);
     });
