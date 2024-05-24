@@ -36,7 +36,7 @@ export function getContinousNetworkTryCount() {
 
 export async function aiChat(messages, parameters) {
     const USE_LLM = await getVarVal('USE_LLM');
-    if (singleton?.options?.debug === 'messages_payloads') {//isElectron()
+    if (singleton?.options?.debug === 'messages_payloads' || isElectron()) {//isElectron()
         const venv_path = await getPythonVenvPath();
         if (venv_path) {
             const logfile = `${venv_path}/messages_payloads.${getCurrentDateTime()}.json`;

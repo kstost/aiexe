@@ -98,7 +98,7 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
                 `# Additional code included at the top of this file ensures smooth operation. For a more detailed review, it is recommended to open the actual file.`,
                 `# Please review the code carefully as it may cause unintended system behavior`,
                 `# You can modify this code before execute`,
-                `# -=-=-=-=-=-=-`,
+                ``,
                 `${python_code}`,
             ].join('\n');
             return {

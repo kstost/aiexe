@@ -480,11 +480,7 @@ window.addEventListener('load', async () => {
                 execode.addEventListener('click', async e => {
                     chatEditor.focus();
                     choosebox.remove();
-                    let boundary = '# -=-=-=-=-=-=-';
-                    let pycode = cm.getValue();
-                    let splited_code = pycode.split(boundary);
-                    splited_code.shift();
-                    let codeBody = splited_code.join(boundary);
+                    let codeBody = (cm.getValue()?.split('\n')).filter(line => line.trim()[0] !== '#').join('\n')
                     let neededPackageListOfObject = await reqAPI('neededpackages', { python_code: codeBody });
                     if (neededPackageListOfObject) {
                         let packageList = Object.keys(neededPackageListOfObject);
