@@ -184,8 +184,17 @@ export async function shell_exec(python_code, only_save = false, silent = false,
         }
         // ㅣㄷㅅ
         let windowsHide;
+        let cwd;
+        if (isElectron()) {
+            cwd = `${venv_path}/working/`;
+            try {
+                if (!await is_dir(cwd)) {
+                    await fsPromises.mkdir(cwd)
+                }
+            } catch { }
+        }
         if (isWindows() && isElectron()) windowsHide = true
-        const child = spawn(...arg, { windowsHide, env, stdio: ['inherit', 'pipe', 'pipe'] });
+        const child = spawn(...arg, { windowsHide, env, stdio: ['inherit', 'pipe', 'pipe'], cwd });
         attatchWatcher(child, resolve, python_code, silent);
     });
 }
@@ -211,6 +220,7 @@ export function attatchWatcher(child, resolve, python_code, silent = false) {
     child.stderr.on('data', function (data) {
         oraStop();
         if (data.indexOf(`warnings.warn("`) > -1 && data.indexOf(`Warning: `) > -1) return;
+        if (data.indexOf(`NotOpenSSLWarning`) > -1 && data.indexOf(`warnings.warn(`) > -1) return;
         stderr.push(data);
         if (!silent) process.stderr.write(chalk.red(data));
     });

@@ -663,6 +663,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                             continue;
                         }
                     }
+                    if (isElectron()) { abort = true; abortReason = message; break; }
                     await oraFail(chalk.redBright(message));
                     if (e.response.data.error.code === 'invalid_api_key') {
                         await disableVariable('OPENAI_API_KEY');
@@ -688,6 +689,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                             continue;
                         }
                     }
+                    if (isElectron()) { abort = true; abortReason = message; break; }
                     await oraFail(chalk.redBright(message));
                     if (e.response.data.error.code === 'invalid_api_key') {
                         await disableVariable('GROQ_API_KEY');
@@ -704,6 +706,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     python_code = await aiChat(messages, parameters)
                 } catch (e) {
                     printError(e);
+                    if (isElectron()) { abort = true; abortReason = e?.response?.data?.error?.message; break; }
                     await oraFail(chalk.redBright(e.response.data.error.message));
                     // e.response.data.error 컨텍스트 윈도우를 넘치는 경우에 대한 처리 필요.
                     if (e.response.data.error.type === 'authentication_error') {
@@ -722,6 +725,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     python_code = await aiChat(messages, parameters);
                 } catch (e) {
                     printError(e);
+                    if (isElectron()) { abort = true; abortReason = e?.response?.data?.error?.message; break; }
                     await oraFail(chalk.redBright(e.response.data.error.message));
                     if (e.response.data.error.message.indexOf('API key not valid') > -1) {
                         await disableVariable('GOOGLE_API_KEY');
