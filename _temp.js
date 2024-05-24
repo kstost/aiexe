@@ -29,9 +29,6 @@ import { Command } from 'commander';
 import { promises as fsPromises } from 'fs';
 import os from 'os';
 import open from 'open';
-//::ELECTRONCODE:://
-import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron';
-//::ELECTRONCODE:://
 // import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -494,61 +491,5 @@ if (!isElectron()) {
     })();
 } else {
     // electron
-    //::ELECTRONCODE:://
-    function createWindow() {
-        const win = new BrowserWindow({
-            show: false, // 처음에 창을 숨깁니다.
-            webPreferences: {
-                preload: join(__dirname, 'static/preload.mjs'),
-                sandbox: false,
-                contextIsolation: true,
-            },
-            icon: path.join(__dirname, 'assets', 'icon.png') // 경로를 올바르게 설정
-
-        });
-
-        win.loadFile('index.html');
-        if (true) win.once('ready-to-show', () => {
-            win.maximize(); // 창을 최대화합니다.
-            win.show(); // 창을 보여줍니다.
-            // if (process.env.NODE_ENV === 'development') {
-            //     win.webContents.openDevTools(); // 개발자 도구 열기
-            // }
-        });
-        globalShortcut.register('CommandOrControl+Shift+I', () => {
-            // 아무 작업도 하지 않습니다.
-        });
-        globalShortcut.register('CommandOrControl+Option+I', () => {
-            // 아무 작업도 하지 않습니다.
-        });
-        globalShortcut.register('F5', () => {
-            // 아무 작업도 하지 않습니다.
-        });
-        globalShortcut.register('CommandOrControl+R', () => {
-            // 아무 작업도 하지 않습니다.
-        });
-
-
-    }
-
-    app.whenReady().then(createWindow);
-
-    app.on('window-all-closed', () => {
-        if (process.platform !== 'darwin') {
-            app.quit();
-        }
-    });
-
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow();
-        }
-    });
-
-    ipcMain.on('request', async (event, arg) => {
-        const result = await apiMethods[arg.mode](arg.arg)
-        event.reply('response', { arg: result, taskId: arg.taskId });
-    });
-    //::ELECTRONCODE:://
 }
 //

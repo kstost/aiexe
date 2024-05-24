@@ -410,7 +410,7 @@ function findStr(str, find) {
 }
 
 let _python_interpreter;
-export async function checkPythonForTermination() {
+export async function checkPythonForTermination(pythoncheck) {
     if (_python_interpreter) return _python_interpreter;
     let python_interpreter;
     try {
@@ -426,11 +426,14 @@ export async function checkPythonForTermination() {
     else if (python_interpreter && python_interpreter?.constructor === String && isBadStr(python_interpreter)) {
         print(`* Python interpreter found located at "${python_interpreter}"`);
         print("However, the path should not contain ', \".");
-        process.exit(1)
+        pythoncheck?.push(`* Python interpreter found located at "${python_interpreter}"`);
+        pythoncheck?.push("However, the path should not contain ', \".");
+        if (!pythoncheck) process.exit(1)
         return;
     }
     else if (python_interpreter && python_interpreter?.constructor === Array) {
         print(`* AIEXE couldn't find a proper python interpreter`);
+        pythoncheck?.push(`* AIEXE couldn't find a proper python interpreter`);
         python_interpreter.forEach(candidate => {
             candidate.path = candidate.path.split('\\').join('/');
             candidate.unicode = candidate.path.split('/').filter(part => containsUnicode(part)).length > 0;
@@ -447,28 +450,39 @@ export async function checkPythonForTermination() {
                         print(`Simply uninstall Python and reinstall it to a path without unicode characters.`);
                         print(`You can install the Python interpreter by downloading it from https://python.org`);
                         print(`For additional inquiries, please contact monogatree@gmail.com`);
+                        pythoncheck?.push(`${candidate.path} found, but it contains unicode characters which may cause issues.`);
+                        pythoncheck?.push(`This can be resolved by moving the Python interpreter to a path without unicode characters.`);
+                        pythoncheck?.push(`Simply uninstall Python and reinstall it to a path without unicode characters.`);
+                        pythoncheck?.push(`You can install the Python interpreter by downloading it from https://python.org`);
+                        pythoncheck?.push(`For additional inquiries, please contact monogatree@gmail.com`);
                     } else {
                         print(`${candidate.path} found but it couldn't pass the test`);
+                        pythoncheck?.push(`${candidate.path} found but it couldn't pass the test`);
                     }
                 });
             } else if (placeHolders.length) {
                 print(`${placeHolders.map(candidate => candidate.path).join(', ')} found, but it is a placeholder path for installing Python from the Microsoft Store.`);
                 print(`You can install the Python interpreter by downloading it from https://python.org`);
                 print(`For additional inquiries, please contact monogatree@gmail.com`);
+                pythoncheck?.push(`${placeHolders.map(candidate => candidate.path).join(', ')} found, but it is a placeholder path for installing Python from the Microsoft Store.`);
+                pythoncheck?.push(`You can install the Python interpreter by downloading it from https://python.org`);
+                pythoncheck?.push(`For additional inquiries, please contact monogatree@gmail.com`);
             }
         }
-        process.exit(1)
+        if (!pythoncheck) process.exit(1)
         return;
     }
     else if (!python_interpreter) {
         // rare possibility
         console.error('This app requires python interpreter.')
-        process.exit(1)
+        pythoncheck?.push('This app requires python interpreter.')
+        if (!pythoncheck) process.exit(1)
         return;
     } else {
         // rare possibility
         console.error('This app requires python interpreter..')
-        process.exit(1)
+        pythoncheck?.push('This app requires python interpreter..')
+        if (!pythoncheck) process.exit(1)
         return;
     }
     // if (true) _python_interpreter = python_interpreter;

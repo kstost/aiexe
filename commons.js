@@ -25,6 +25,9 @@ import { promises as fsPromises } from 'fs';
 import os from 'os';
 import inquirer from 'inquirer';
 
+export function isElectron() {
+    return !!(process?.versions?.electron);
+}
 export async function promptChoices(choices, message) {
     const indexedChoices = choices.map((choice, index) => `${index + 1} - ${choice}`);
     const answers = await inquirer.prompt([
@@ -68,6 +71,7 @@ export async function is_dir(path) {
         const stat = await fsPromises.stat(path);
         return stat.isDirectory();
     } catch (error) {
+        printError(error);
         return false;
     }
 }
@@ -76,6 +80,7 @@ export async function is_file(path) {
         const stat = await fsPromises.stat(path);
         return stat.isFile();
     } catch (error) {
+        printError(error);
         return false;
     }
 }
@@ -83,7 +88,8 @@ export async function isItem(itemPath) {
     try {
         await fsPromises.access(itemPath, fsPromises.constants.F_OK);
         return true;
-    } catch {
+    } catch (e) {
+        printError(e);
         return false;
     }
 }

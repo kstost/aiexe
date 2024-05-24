@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, getPowerShellPath, generateModuleInstallCode } from './codeExecution.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
@@ -85,7 +85,15 @@ export async function isCorrectCode(python_code, list, justStripFench, moduleIns
             const venv_path = await getPythonVenvPath();
             if (venv_path) {
                 await fsPromises.writeFile(`${venv_path}` + '/._tmpcode.py', python_code);
-                const err = await code_validator(`${venv_path}` + '/._tmpcode.py');
+                let json = false;
+                try {
+                    JSON.parse(python_code);
+                    json = true;
+                } catch (e) {
+                    printError(e);
+
+                }
+                const err = json ? 'not python code but just value' : await code_validator(`${venv_path}` + '/._tmpcode.py');
                 if (err) {
                     rtcode.err = err;
                     rtcode.syntaxtest = { code: python_code, error: err };
@@ -126,11 +134,26 @@ export async function makeVEnvCmd(pythonCmd, spawn = false) {
     pythonCmd = pythonCmd.split(`"`).join(`\\"`);
     if (spawn) {
         if (isWindows()) {
+            let nulluse = isElectron();// && false;
             const powershell = await getPowerShellPath();
-            return [`${powershell}`, [`${powershell}`, `-NoProfile`, `-ExecutionPolicy`, `Bypass`, `-Command`, `"& '${activateCmd}'; & ${pythonCmd}"`]];
+            // return [`${powershell}`, [`${powershell}`, `-NoProfile`, `-ExecutionPolicy`, `Bypass`, `-Command`, `"& '${activateCmd}'; & ${pythonCmd}${nulluse ? ` < nul` : ''}"`]];
+            return [
+                `${powershell}`,
+                [
+                    `${powershell}`,
+                    `-NoProfile`,
+                    `-ExecutionPolicy`,
+                    `Bypass`,
+                    `-Command`,
+                    `"& '${activateCmd}'; & ${pythonCmd}"${nulluse ? `; $null = [System.Console]::In.Close()` : ''}`
+                ]
+            ];
+
+            return [`${powershell}`, [`${powershell}`, `-NoProfile`, `-ExecutionPolicy`, `Bypass`, `-Command`, `"& '${activateCmd}'; & ${pythonCmd}${nulluse ? ` < nul` : ''}"`]];
         } else {
+            let nulluse = isElectron();// && false;
             const bash_path = !isWindows() ? await which(`bash`) : null;
-            return [`${bash_path}`, ['-c', `"${bash_path}" -c "source '${activateCmd}' && ${pythonCmd}"`]]
+            return [`${bash_path}`, ['-c', `"${bash_path}" -c "source '${activateCmd}' && ${pythonCmd}${nulluse ? ` < /dev/null` : ''}"`]]
         }
     } else {
         if (isWindows()) {

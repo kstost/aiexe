@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIEXE</title>
+  <link rel="stylesheet" href="./static/codemirror.min.css">
+  <link rel="stylesheet" href="./static/monokai.min.css">
+  <script src="./static/codemirror.min.js"></script>
+  <script src="./static/python.min.js"></script>
+  <script src="./static/show-hint.min.js"></script>
+  <script src="./static/gsap.min.js"></script>
+  <link rel="stylesheet" href="./static/show-hint.min.css">
+  <style>
+    .CodeMirror {
+      width: 100%;
+      height: 100%;
+    }
+
+    .input-container .CodeMirror {
+      min-height: 80px;
+    }
+
+    .CodeMirror-gutters {
+      background-color: #002b36;
+      /* 배경색 */
+      border-right: 1px solid #586e75;
+      /* 구분선 색 */
+    }
+
+    .CodeMirror-linenumber {
+      color: #839496;
+      opacity: 0.25;
+      /* 라인 넘버 색 */
+    }
+
+    #editor-container {
+      width: 100%;
+      height: 100vh;
+    }
+
+    /* Reset CSS */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-size: 15px;
+    }
+
+    /* 기본적인 HTML 요소 스타일링 */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #1e1f1c;
+      color: #ccc;
+      display: flex;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    /* 채팅 컨테이너 */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex: 1;
+      transition: margin-left 0.3s ease;
+    }
+
+    /* 목록 영역 */
+    .sidebar {
+      width: 200px;
+      background: #2e2f2a;
+      border-right: 1px solid #444;
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+      text-align: right;
+    }
+
+    .sidebar.hidden {
+      transform: translateX(-70%);
+    }
+
+    .sidebar ul {
+      list-style-type: none;
+      padding: 10px;
+    }
+
+    .sidebar li {
+      padding: 10px;
+      border-bottom: 1px solid #444;
+    }
+
+    .sidebar li:hover {
+      background: #444;
+      cursor: pointer;
+    }
+
+    #logoarea {
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      padding: 18px;
+      padding-left: 25px;
+      font-size: 2em;
+    }
+
+    /* 토글 버튼 */
+    .toggle-btn {
+      /* width: 100%; */
+      background: transparent;
+      color: #fff;
+      border: 0px solid red;
+      padding: 20px;
+      display: inline-block;
+      font-size: 2em;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+      background: #555;
+    }
+
+    /* 채팅 메시지 영역 */
+    .chat-messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background: #1e1f1c;
+      border-top: 1px solid #444;
+      border-bottom: 1px solid #444;
+    }
+
+    .message * {
+      word-break: break-all;
+    }
+
+    .message {
+      margin-bottom: 15px;
+      /* display: flex; */
+      padding: 10px;
+      border-radius: 5px;
+      max-width: 70%;
+      /* word-wrap: break-word; */
+    }
+
+    /* 상대방 메시지 스타일 */
+    .message.other {
+      /* justify-content: flex-start; */
+      background: #272822;
+      margin-right: auto;
+      color: #ccc;
+    }
+
+    /* 내 메시지 스타일 */
+    .message.mine {
+      /* justify-content: flex-end; */
+      /* background: #444; */
+      background: #272822;
+      color: #fff;
+      margin-left: auto;
+    }
+
+    /* 입력 박스 컨테이너 */
+    .input-container {
+      display: flex;
+      padding: 10px;
+      background: #272822;
+      border-top: 1px solid #444;
+    }
+
+    .input-container div {
+      flex: 1;
+      /* height: 80px; */
+      /* flex: 1;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 5px;
+      resize: none;
+      font-size: 16px;
+      background: #1e1f1c;
+      color: #ccc; */
+    }
+
+    .input-container button {
+      background: #444;
+      color: #fff;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      /* font-size: 16px; */
+      margin-left: 10px;
+    }
+
+    .input-container button:hover {
+      background: #555;
+    }
+
+    .loader {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: inline-block;
+      border-top: 3px solid #FFF;
+      border-right: 3px solid transparent;
+      box-sizing: border-box;
+      animation: rotation 1s linear infinite;
+    }
+
+    @keyframes rotation {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sidebar" id="sidebar">
+    <button class="toggle-btn" id="toggle-btn">三</button>
+    <ul id="majore">
+    </ul>
+    <div style="text-align: center;padding:20px;opacity: 0.3;font-size: 0.7em;">1.0.152<br />monogatree@gmail.com</div>
+    <ul id="talklist">
+    </ul>
+    <div id="logoarea">AIEXE</div>
+
+  </div>
+
+  <div class="chat-container" id="chat-container">
+    <div class="chat-messages" id="chat-messages">
+      <!-- 채팅 메시지 예시 -->
+    </div>
+    <div class="input-container">
+      <div></div>
+      <button>Send</button>
+    </div>
+  </div>
+
+  <script type="module" src="renderer.js"></script>
+  <script>
+    const toggleBtn = document.getElementById('toggle-btn');
+    const sidebar = document.getElementById('sidebar');
+    const chatContainer = document.getElementById('chat-container');
+
+    toggleBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('hidden');
+      if (sidebar.classList.contains('hidden')) {
+        chatContainer.style.marginLeft = `-${200 * .7}px`;
+      } else {
+        chatContainer.style.marginLeft = '0px';
+      }
+    });
+  </script>
+</body>
+
+</html>

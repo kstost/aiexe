@@ -2,11 +2,12 @@
 /* eslint-disable no-unused-vars, no-unreachable, no-constant-condition, no-constant-binary-expression */
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable, llamaFamily } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { resetHistory, addMessages, addHistory, summarize, resultAssigning, defineNewMission, errorPromptHandle, } from './promptManager.js'
 import promptTemplate from './translationPromptTemplate.js';
 import singleton from './singleton.js';
 import chalk from 'chalk';
@@ -35,7 +36,7 @@ export function getContinousNetworkTryCount() {
 
 export async function aiChat(messages, parameters) {
     const USE_LLM = await getVarVal('USE_LLM');
-    if (singleton?.options?.debug === 'messages_payloads') {
+    if (singleton?.options?.debug === 'messages_payloads') {//isElectron()
         const venv_path = await getPythonVenvPath();
         if (venv_path) {
             const logfile = `${venv_path}/messages_payloads.${getCurrentDateTime()}.json`;
@@ -290,7 +291,8 @@ export async function openaiChat(messages, parameters = { temperature: 0 }) {
                     print(chalk.red(errorMessage));
                     await waitTimeFor(waitTime * 1000);
                     continue;
-                } catch {
+                } catch (e) {
+                    printError(e);
                     throw e;
                 }
             }
@@ -547,7 +549,8 @@ function isContextWindowExceeded(errmsg) {
     if (!errmsg) return false;
     return errmsg.indexOf('Please reduce the length of the messages or completion') > -1;
 }
-export async function code_generator(summary, messages_ = [], history = [], askforce, debugMode, defineNewMission, addHistory, getPrompt, contextWindowRatio = 1) {
+export async function code_generator(summary, messages_ = [], history = [], askforce, promptSession, contextWindowRatio = 1) {
+    const debugMode = false;
     const USE_LLM = await getVarVal('USE_LLM');
     let python_code = '';
     let abort = false;
@@ -568,11 +571,12 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 nothing_responsed 이전 요청내용
             */
             const reGenerateMode = askforce === 're-generate';
+            if (false) print('reGenerateMode', reGenerateMode, askforce);
             if (askforce === 'responsed_code_is_invalid_syntax') {
                 moduleInstall = true;
-                let request = (await ask_prompt_text(`What can I do for you?`)).trim(); // 이 물음에서 진행했을때 `Nothing responsed`의 상황이 만들어진다.
+                let request = isElectron() ? promptSession.prompt : (await ask_prompt_text(`What can I do for you?`)).trim(); // 이 물음에서 진행했을때 `Nothing responsed`의 상황이 만들어진다.
                 if (request) {
-                    defineNewMission(request);
+                    defineNewMission(promptSession, history, request);
                 } else {
                     abort = true;
                     break;
@@ -582,9 +586,9 @@ export async function code_generator(summary, messages_ = [], history = [], askf
             }
             else if (askforce === 'responsed_opinion') {
                 moduleInstall = true;
-                let request = (await ask_prompt_text(`What can I do for you?`)).trim();
+                let request = isElectron() ? promptSession.prompt : (await ask_prompt_text(`What can I do for you?`)).trim();
                 if (request) {
-                    defineNewMission(request);
+                    defineNewMission(promptSession, history, request);
                 } else {
                     abort = true;
                     break;
@@ -612,20 +616,9 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                         askingMent = 'What could I do for you?';
                     }
                     try {
-                        print(`Previous prompt: ${chalk.bold(getPrompt())}`);
+                        print(`Previous prompt: ${chalk.bold(promptSession.prompt)}`);
                         let request = (await ask_prompt_text(askingMent)).trim();
-                        if (request) {
-                            if (askforce === 'run_code_causes_error') {
-                                history.at(-1).content += `\n\nDon't say anything`;
-                                addHistory({ role: "assistant", content: '' });
-                                defineNewMission(request, true); // dont remove
-                                false && print(JSON.stringify(history, undefined, 3));
-                            }
-                            if (askforce === 'nothing_responsed') defineNewMission(request);
-                            print('The request has been changed.\nRequesting again with the updated request.');
-                        } else {
-                            print('There are no changes.\nRequesting again with the original request.');
-                        }
+                        errorPromptHandle(request, history, askforce, promptSession);
                     } catch (e) {
                         printError(e);
                         print(e);

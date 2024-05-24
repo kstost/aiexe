@@ -2,10 +2,11 @@
 /* eslint-disable no-unused-vars, no-async-promise-executor, no-empty */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
+import { resetHistory, addMessages, addHistory, summarize, resultAssigning, defineNewMission, assignNewPrompt, } from './promptManager.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
 import pyModuleTable from './pyModuleTable.js';
@@ -27,7 +28,36 @@ import { spawn } from 'child_process';
 import os from 'os';
 import singleton from './singleton.js'
 
+export function procPlainText(messages_, history, result2, resForOpi, apimode = false) {
+    let askforce;
+    if (result2.raw) {
+        history.forEach(item => addMessages(messages_, item));
+        addMessages(messages_, { role: "assistant", content: result2.raw.trim() });
+        resetHistory(history);
+        if (!apimode) print(chalk.hex('#4b4b66').bold('─'.repeat(measureColumns(0))));
+        if (!apimode) print(chalk.hex('#a8a6f3')(chalk.bold(`AI's Response`) + ':'));
+        let resultd = result2.raw.trim();
+        if (!apimode) print(chalk.hex('#a8a6f3')(resultd))
+        if (!apimode) print(chalk.hex('#4b4b66').bold('─'.repeat(measureColumns(0))));
+        askforce = 'responsed_code_is_invalid_syntax';
+        if (resForOpi) askforce = 'responsed_opinion';
+        // askforce = 'responsed_opinion';
+    } else {
+        if (!apimode) print(chalk.red('Nothing responsed'));
+        askforce = 'nothing_responsed';
+    }
+    return { askforce }
+}
 
+export async function neededPackageOfCode(python_code, blank = true) {
+    const objected = {};
+    try {
+        const importcode = await generateModuleInstallCode(python_code, true);
+        if (!importcode.codename.length) return;
+        importcode.codename.forEach(name => objected[name] = blank ? '' : asPyModuleName(name));
+    } catch (e) { printError(e); }
+    return objected;
+}
 export function repld(mn) { return mn.split('_').join('-'); }
 export function asPyModuleName(mname) {
     return repld(`${pyModuleTable[mname] ? pyModuleTable[mname] : mname}`);
@@ -112,7 +142,7 @@ export async function moduleValidator(code_file_path) {
     // print(resutl);
     try {
         return JSON.parse(resutl.stdout);
-    } catch { }
+    } catch (e) { printError(e); }
     return [];
 }
 export async function makePreprocessingCode() {
@@ -152,7 +182,10 @@ export async function shell_exec(python_code, only_save = false, silent = false,
             singleton.debug(arg, 'shellexe');
             print(chalk.blueBright(python_code));
         }
-        const child = spawn(...arg, { env, stdio: ['inherit', 'pipe', 'pipe'] });
+        // ㅣㄷㅅ
+        let windowsHide;
+        if (isWindows() && isElectron()) windowsHide = true
+        const child = spawn(...arg, { windowsHide, env, stdio: ['inherit', 'pipe', 'pipe'] });
         attatchWatcher(child, resolve, python_code, silent);
     });
 }
@@ -222,7 +255,7 @@ export async function getPowerShellPath() {
         }
         __powershellPath = powershellPath;
         return powershellPath;
-    } catch { }
+    } catch (e) { printError(e); }
 }
 
 export async function execAdv(cmd, mode = true, opt = {}) {

@@ -1,7 +1,7 @@
 {
   "name": "aiexe",
-  "version": "1.0.151",
-  "description": "",
+  "version": "1.0.152",
+  "description": "A cutting-edge powerful AI agent",
   "main": "index.js",
   "type": "module",
   "bin": {
@@ -27,8 +27,10 @@
   },
   "contributors": [],
   "scripts": {
-    "start": "node index.js",
+    "start": "source start.sh",
     "lint": "eslint .",
+    "electron": "electron .",
+    "build": "cross-env NODE_ENV=production electron-builder",
     "dev": "",
     "test": ""
   },
@@ -44,13 +46,40 @@
     "express": "^4.19.2",
     "figlet": "^1.7.0",
     "inquirer": "^9.2.20",
+    "open": "^10.1.0",
     "ora": "^8.0.1",
     "readline-sync": "^1.4.10",
     "shelljs": "^0.8.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.2.0",
+    "cross-env": "^7.0.3",
+    "electron": "^30.0.7",
+    "electron-builder": "^24.13.3",
     "eslint": "^9.2.0",
     "globals": "^15.2.0"
+  },
+  "build": {
+    "appId": "com.cokac.aiexe",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "./assets/icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "./assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "./assets/icon.ico",
+      "uninstallerIcon": "./assets/icon.ico",
+      "installerHeaderIcon": "./assets/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "./assets/icon.png"
+    }
   }
 }

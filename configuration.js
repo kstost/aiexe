@@ -24,23 +24,24 @@ import { Command } from 'commander';
 import { promises as fsPromises } from 'fs';
 import os from 'os';
 
-export async function createVENV() {
-    const pythonPath = await checkPythonForTermination();
+export async function createVENV(silent = false, pythoncheck = null) {
+    const pythonPath = await checkPythonForTermination(pythoncheck);
     if (!pythonPath) return;
     const venv_path = await getPythonVenvPath();
-    if (venv_path) return;
+    if (venv_path) return true;
     const venvCandidate = await venvCandidatePath();
-    oraStart('Creating virtual environment for Python');
-    if (disableOra) oraStop();
+    if (!silent) oraStart('Creating virtual environment for Python');
+    if (!silent) if (disableOra) oraStop();
     let res;
     if (isWindows()) res = await execAdv(`& '${pythonPath}' -m venv \\"${venvCandidate}\\"`); //dt
     else res = await execAdv(`"${pythonPath}" -m venv "${venvCandidate}"`)
     if (res.code === 0) {
         await setVarVal('PYTHON_VENV_PATH', venvCandidate);
-        oraSucceed(chalk.greenBright('Creating virtual environment for Python successed'));
+        if (!silent) oraSucceed(chalk.greenBright('Creating virtual environment for Python successed'));
+        return true;
     } else {
-        oraFail(chalk.redBright('Creating VENV fail'));
-        console.error(chalk.yellowBright(res.stdout))
+        if (!silent) oraFail(chalk.redBright('Creating VENV fail'));
+        if (!silent) console.error(chalk.yellowBright(res.stdout))
         throw new Error('Creating VENV fail');
     }
 }
