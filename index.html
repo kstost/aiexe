@@ -22,6 +22,18 @@
       min-height: 80px;
     }
 
+    .no-select,
+    .no-select * {
+      -webkit-user-select: none;
+      /* Chrome, Safari, Opera */
+      -moz-user-select: none;
+      /* Firefox */
+      -ms-user-select: none;
+      /* Internet Explorer/Edge */
+      user-select: none;
+      /* 표준 구문 */
+    }
+
     .CodeMirror-gutters {
       background-color: #002b36;
       /* 배경색 */
@@ -70,6 +82,7 @@
 
     /* 목록 영역 */
     .sidebar {
+      position: relative;
       width: 200px;
       background: #2e2f2a;
       border-right: 1px solid #444;
@@ -224,7 +237,7 @@
 </head>
 
 <body>
-  <div class="sidebar" id="sidebar">
+  <div class="sidebar no-select" id="sidebar">
     <button class="toggle-btn" id="toggle-btn">三</button>
     <ul id="majore">
     </ul>

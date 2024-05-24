@@ -97,7 +97,8 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
                 // `# This code file is actually located at ${code_saved_path.split('/').join(isWindows() ? '\\' : '/')} and you can review the code by opening this file.`,
                 `# Additional code included at the top of this file ensures smooth operation. For a more detailed review, it is recommended to open the actual file.`,
                 `# Please review the code carefully as it may cause unintended system behavior`,
-                ``,
+                `# You can modify this code before execute`,
+                `# -=-=-=-=-=-=-`,
                 `${python_code}`,
             ].join('\n');
             return {

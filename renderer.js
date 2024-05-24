@@ -480,7 +480,12 @@ window.addEventListener('load', async () => {
                 execode.addEventListener('click', async e => {
                     chatEditor.focus();
                     choosebox.remove();
-                    let neededPackageListOfObject = await reqAPI('neededpackages', { python_code: cm.getValue() });
+                    let boundary = '# -=-=-=-=-=-=-';
+                    let pycode = cm.getValue();
+                    let splited_code = pycode.split(boundary);
+                    splited_code.shift();
+                    let codeBody = splited_code.join(boundary);
+                    let neededPackageListOfObject = await reqAPI('neededpackages', { python_code: codeBody });
                     if (neededPackageListOfObject) {
                         let packageList = Object.keys(neededPackageListOfObject);
 
@@ -495,11 +500,11 @@ window.addEventListener('load', async () => {
                             }
                         }
                     }
-                    let result = await reqAPI('shell_exec', { "code": cm.getValue(), "b64": false });
+                    let result = await reqAPI('shell_exec', { "code": codeBody, "b64": false });
                     let code = result.code
                     let stdout = result.stdout
                     let stderr = result.stderr
-                    let resggd = await reqAPI('resultassigning', { python_code: cm.getValue(), result, messages_: messages_, history: history_ });
+                    let resggd = await reqAPI('resultassigning', { python_code: codeBody, result, messages_: messages_, history: history_ });
                     setAskForce(resggd.askforce);
 
                     history_ = resggd.history;
