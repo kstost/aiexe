@@ -1,23 +1,26 @@
 # aiexe
 
-Welcome to aiexe, the cutting-edge command-line interface (CLI) tool that integrates powerful AI capabilities directly into your terminal. Designed for developers, tech enthusiasts, and anyone interested in AI-powered automation, aiexe provides an easy-to-use yet robust platform for executing complex tasks with just a few commands. Harness the power of OpenAI's GPT models, Anthropic's Claude models, Ollama's versatile llama3 models, Gemini models, and GROQ's models to boost your productivity and enhance your decision-making processes.
+Welcome to aiexe, the cutting-edge command-line interface (CLI) and graphical user interface (GUI) tool that integrates powerful AI capabilities directly into your terminal or desktop. Designed for developers, tech enthusiasts, and anyone interested in AI-powered automation, aiexe provides an easy-to-use yet robust platform for executing complex tasks with just a few commands. Harness the power of OpenAI's GPT models, Anthropic's Claude models, Ollama's versatile llama3 models, Gemini models, and GROQ's models to boost your productivity and enhance your decision-making processes.
 
 ## Table of Contents
 1. [Watch Our Demo](#watch-our-demo)
 2. [Features](#features)
 3. [Getting Started](#getting-started)
 4. [Installation](#installation)
-   - [Windows Installation](#windows-installation)
-   - [macOS Installation](#macos-installation)
-   - [Linux Installation](#linux-installation)
+   - [CLI Installation](#cli-installation)
+     - [Windows Installation](#windows-cli-installation)
+     - [macOS Installation](#macos-cli-installation)
+     - [Linux Installation](#linux-cli-installation)
+   - [GUI Installation](#gui-installation)
+     - [Windows Installation](#windows-gui-installation)
+     - [macOS Installation](#macos-gui-installation)
 5. [Usage](#usage)
 6. [Translation Feature](#translation-feature)
 7. [Safety Features](#safety-features)
 8. [Additional Python Environment Setup](#additional-python-environment-setup)
 9. [Contribute](#contribute)
 10. [Support](#support)
-11. [Change Log](#change-log)
-12. [Subscribe](#subscribe)
+11. [Subscribe](#subscribe)
 
 ## Watch Our Demo
 Watch our demo video on YouTube to get a quick overview of what aiexe can do for you! Click [here](https://www.youtube.com/watch?v=dvx-gFx6nUw) to watch the video.  
@@ -26,7 +29,7 @@ Watch our demo video on YouTube to get a quick overview of what aiexe can do for
 ## Features
 
 - **Seamless Integration**: Easily integrate with OpenAI, Anthropic, Ollama, Gemini, and GROQ AI models.
-- **Flexible Commands**: Execute a variety of AI-driven tasks directly from your CLI.
+- **Flexible Commands**: Execute a variety of AI-driven tasks directly from your CLI or GUI.
 - **Cross-Platform Compatibility**: Works on any system with Python support, including Linux, macOS, and Windows.
 
 ## Getting Started
@@ -37,7 +40,9 @@ Before you begin, ensure you have `npm` and Python installed on your system.
 
 ## Installation
 
-### Windows Installation
+### CLI Installation
+
+#### Windows CLI Installation
 1. Download and install Node.js from [nodejs.org](https://nodejs.org).
 2. Download and install Python from [python.org](https://www.python.org/).
 3. Run PowerShell and execute the following command to set the execution policy:
@@ -54,7 +59,7 @@ Before you begin, ensure you have `npm` and Python installed on your system.
    aiexe
    ```
 
-### macOS Installation
+#### macOS CLI Installation
 1. Download and install Node.js from [nodejs.org](https://nodejs.org).
 2. Download and install Python from [python.org](https://www.python.org/).
 3. Install `aiexe` globally using npm:
@@ -66,7 +71,7 @@ Before you begin, ensure you have `npm` and Python installed on your system.
    aiexe
    ```
 
-### Linux Installation
+#### Linux CLI Installation
 1. Download and install Node.js from [nodejs.org](https://nodejs.org).
 2. Download and install Python from [python.org](https://www.python.org/).
 3. Install `aiexe` globally using npm:
@@ -76,6 +81,20 @@ Before you begin, ensure you have `npm` and Python installed on your system.
 4. Start using `aiexe` by entering the command:
    ```bash
    aiexe
+   ```
+
+### GUI Installation
+
+#### Windows GUI Installation
+1. Open PowerShell with administrative privileges and run the following command:
+   ```powershell
+   if (Get-Command npm -ErrorAction SilentlyContinue) { $timestamp = Get-Date -Format "yyyyMMddHHmmss"; $folderName = "_aiexe_project_$timestamp"; $desktopPath = [System.IO.Path]::Combine([System.Environment]::GetFolderPath('Desktop'), $folderName); New-Item -ItemType Directory -Path $desktopPath -Force; if (Test-Path $desktopPath) { Set-Location -Path $desktopPath; Invoke-WebRequest -Uri "https://github.com/kstost/aiexe/archive/refs/heads/main.zip" -OutFile "__aiexe_project__.zip" -ErrorAction Stop; if (Test-Path "__aiexe_project__.zip") { Expand-Archive -Path "__aiexe_project__.zip" -DestinationPath "."; Set-Location -Path "aiexe-main"; npm i; if ($?) { npm run build; if ($?) { ii "dist\\aiexe Setup*.exe" } } } } } else { Write-Output "npm is not installed. Please download and install it from https://nodejs.org." }
+   ```
+
+#### macOS GUI Installation
+1. Open Terminal and run the following command:
+   ```bash
+   command -v npm >/dev/null 2>&1 && { timestamp=$(date +%Y%m%d%H%M%S) && cd ~/Downloads && mkdir "_aiexe_project_$timestamp" && cd "_aiexe_project_$timestamp" && git clone https://github.com/kstost/aiexe && cd aiexe && npm i && npm run build && open dist/aiexe-*-arm64.dmg; } || { echo "npm is not installed. Please download and install it from https://nodejs.org."; }
    ```
 
 ## Usage
@@ -208,28 +227,6 @@ Thank you for your contributions to the development and enhancement of `aiexe`!
 ## Support
 
 If you need help or have any questions, please open an issue in the GitHub repository.
-
-## Change Log
-
-### Version 1.0.138
-- Improved PowerShell and Bash command configurations with `makeVEnvCmd` function.
-- Enhanced `spawn` option handling for command arrays.
-
-### Version 1.0.136
-- Added multiple PowerShell and Python path debug commands.
-- Updated debugging logic for enhanced path verification.
-
-### Version 1.0.134
-- Improved token estimation and splitting logic.
-- Enhanced error message handling and context window management.
-
-### Version 1.0.132
-- Added `typespace` function for improved string validation.
-- Switched from `typeone` to `typespace` for `PYTHON_VENV_PATH` validation.
-
-### Version 1.0.130
-- Added `getPowerShellPath` function for better PowerShell path handling.
-- Enhanced virtual environment command handling for Windows.
 
 ## Subscribe
 
