@@ -2,7 +2,7 @@
 /* eslint-disable no-unused-vars, no-async-promise-executor, no-empty */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron, errNotifier } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
@@ -249,6 +249,7 @@ export async function getPowerShellPath() {
         if (!powershellPath && await is_file(hardpath)) powershellPath = hardpath;
         if (isBadStr(powershellPath)) powershellPath = null;
         if (!powershellPath) {
+            await errNotifier(`Window PowerShell not found`);
             print(chalk.red(`Window PowerShell not found`));
             process.exit(1);
             return;

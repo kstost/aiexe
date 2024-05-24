@@ -181,6 +181,7 @@ const apiMethods = {
         // if (!body?.messages_) return;
         // if (!body?.history) return;
         // if (!body?.prompt) return;
+        if (isElectron()) print('assignnewprompt', body);
         return await assignNewPrompt(body?.request, body?.history, body?.promptSession, body?.python_code, true);
     },
     async aireq(body) {
@@ -516,7 +517,7 @@ if (!isElectron()) {
             win.maximize(); // 창을 최대화합니다.
             win.show(); // 창을 보여줍니다.
             // if (process.env.NODE_ENV === 'development') {
-            win.webContents.openDevTools(); // 개발자 도구 열기
+            // win.webContents.openDevTools(); // 개발자 도구 열기
             // }
         });
         globalShortcut.register('CommandOrControl+Shift+I', () => {

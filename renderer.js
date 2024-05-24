@@ -42,10 +42,12 @@ window.addEventListener('load', async () => {
             const err = document.createElement('div');
             err.innerText = reqValue;
             err.style.color = 'rgb(239 82 82)';
-            err.style.padding = '5px';
-            err.style.fontSize = '0.85em';
+            err.style.padding = '10px';
+            // err.style.fontSize = '0.85em';
             err.style.textAlign = 'center';
+            removeLoading();
             let explain = createConversationLine({ text: err, type: 2, parent: chatMessages });
+            showLoading();
             // console.log('ERRR', reqValue);
             resValue = reqValue;
         }
@@ -75,6 +77,7 @@ window.addEventListener('load', async () => {
         let adf = `<span class="loader"></span>`;
         let oiadjsf = document.createElement('div');
         oiadjsf.style.textAlign = 'center';
+        oiadjsf.style.padding = '15px';
         oiadjsf.innerHTML = adf;
         chatMessages.appendChild(oiadjsf);
         scrollSmoothToBottom();
@@ -86,6 +89,7 @@ window.addEventListener('load', async () => {
     }
     button.addEventListener('click', e => {
         entertir(chatEditor, chatEditor.getValue());
+        chatEditor.focus();
     })
 
     let chatEditor = makeEditor(inputarea, '', "text", !true, entertir, true);
@@ -96,6 +100,7 @@ window.addEventListener('load', async () => {
         if (loading) return;
         if (!text.trim()) return;
         cm.setValue('');
+        removeTools();
         if (true) {
             const line = createConversationLine({ text: text, type: 1, parent: chatMessages })
             cline.push(line);
@@ -190,8 +195,10 @@ window.addEventListener('load', async () => {
             let data = line[Symbol.for('state')]();
             return { askforce: data.askforce, type: data.type, values: data.cm.map(cm => cm?.getValue() || '') };
         })
+        // let sessionDate = getCurrentDateTime();
         let state = {
             environment: {
+                sessionDate,
                 promptSession,
                 history: history_,
                 messages: messages_,
@@ -252,6 +259,10 @@ window.addEventListener('load', async () => {
 
         }
 
+    }
+    function removeTools() {
+        const chooseboxSymbol = Symbol.for('choosebox');
+        cline.forEach(item => item[chooseboxSymbol]?.remove());
     }
     function createConversationLine({ text, type, parent, askforce, restore, last }) {
         let conversationLine;
@@ -326,7 +337,7 @@ window.addEventListener('load', async () => {
             toolBtn.style.width = '100%'
             toolBtn.style.textAlign = 'right'
             conversationLine.appendChild(toolBtn);
-            conversationLine[Symbol.for('toolBtn')] = toolBtn;
+            conversationLine[Symbol.for('choosebox')] = toolBtn;
             conversationLine[Symbol.for('state')] = () => {
                 return { type, cm: [editors.stdout, editors.stderr], askforce };
             };
@@ -335,6 +346,7 @@ window.addEventListener('load', async () => {
                     currentMode = askforce;
                     const execode = makeButton('Create of a revised code');
                     execode.addEventListener('click', async e => {
+                        chatEditor.focus();
                         toolBtn.remove();
                         setAskForce('');
                         await saveState();
@@ -386,6 +398,7 @@ window.addEventListener('load', async () => {
                 df.innerText = modulelistOb[name];
                 let toggle = false;
                 df.addEventListener('click', e => {
+                    chatEditor.focus();
                     toggle = !toggle;
                     if (toggle) {
                         df.style.borderBottom = '3px solid yellow';
@@ -421,6 +434,8 @@ window.addEventListener('load', async () => {
             toolBtnd.innerText = 'Install';
             toolBtn.appendChild(toolBtnd);
             toolBtnd.addEventListener('click', e => {
+                toolBtn.remove();
+                chatEditor.focus();
                 resolver(Object.keys(chosenList));
             })
             scrollSmoothToBottom();
@@ -428,6 +443,7 @@ window.addEventListener('load', async () => {
             let promise = new Promise(resolve => {
                 resolver = resolve;
             });
+            conversationLine[Symbol.for('choosebox')] = toolBtn;
             return promise;
             // return new Promise(resolve => {
             //     // resolver = resolve;
@@ -462,6 +478,7 @@ window.addEventListener('load', async () => {
                 const execode = makeButton('Execute Code');
                 choosebox.appendChild(execode);
                 execode.addEventListener('click', async e => {
+                    chatEditor.focus();
                     choosebox.remove();
                     let neededPackageListOfObject = await reqAPI('neededpackages', { python_code: cm.getValue() });
                     if (neededPackageListOfObject) {
@@ -500,6 +517,7 @@ window.addEventListener('load', async () => {
             if (!restore || last) {
                 const execode = makeButton('Re-Generate Code');
                 execode.addEventListener('click', async e => {
+                    chatEditor.focus();
                     choosebox.remove();
                     conversationLine.remove();
                     cline.pop();
@@ -564,6 +582,7 @@ window.addEventListener('load', async () => {
             li.style.wordBreak = 'break-all';
             majore.appendChild(li);
             li.addEventListener('click', e => {
+                chatEditor.focus();
                 itm.trg();
             })
         })
@@ -585,9 +604,11 @@ window.addEventListener('load', async () => {
                 li.innerText = `새 대화`;
             }
             li.addEventListener('click', async e => {
+                chatEditor.focus();
                 chatMessages.innerText = '';
                 cline.splice(0, Infinity);
                 if (!file) {
+                    sessionDate = getCurrentDateTime();
                     promptSession = null;
                     history_ = [];
                     messages_ = [];
@@ -598,6 +619,7 @@ window.addEventListener('load', async () => {
                 }
                 let stateData = await reqAPI('getstate', { filename: file });
                 let parsed = JSON.parse(stateData);
+                sessionDate = parsed.environment.sessionDate;
                 promptSession = parsed.environment.promptSession;
                 history_ = parsed.environment.history;
                 messages_ = parsed.environment.messages;
@@ -837,7 +859,7 @@ window.addEventListener('load', async () => {
                 await reqAPI('setconfig', { key: 'OLLAMA_MODEL', value: chosen });
             }
         }
-        {
+        if (false) {
             const UPDATE_CHECK = await reqAPI('getconfig', { key: 'UPDATE_CHECK' });
             if (!UPDATE_CHECK) {
                 let title = 'Do you want to check for new updates every time you run the app?';

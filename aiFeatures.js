@@ -36,7 +36,7 @@ export function getContinousNetworkTryCount() {
 
 export async function aiChat(messages, parameters) {
     const USE_LLM = await getVarVal('USE_LLM');
-    if (singleton?.options?.debug === 'messages_payloads' || isElectron()) {//isElectron()
+    if (singleton?.options?.debug === 'messages_payloads') {//isElectron()
         const venv_path = await getPythonVenvPath();
         if (venv_path) {
             const logfile = `${venv_path}/messages_payloads.${getCurrentDateTime()}.json`;
@@ -235,6 +235,7 @@ export async function groqChat(messages, parameters = { temperature: 0 }) {
                 }
                 let waitTime = Math.ceil((extractTime(e.response.data.error.message) / 1000) * 1.1)
                 // print(chalk.red(`You made many requests quickly, which overwhelmed the AI.\nIt will take ${waitTime} seconds break and try again.`));
+                await errNotifier(e.response.data.error.message);
                 print(chalk.red(e.response.data.error.message));
                 await waitTimeFor(waitTime * 1000);
                 alreadWaited = true;
@@ -292,6 +293,7 @@ export async function openaiChat(messages, parameters = { temperature: 0 }) {
                 try {
                     waitTime = Math.ceil((extractTime(errorMessage) / 1000) * 1.1)
                     if (waitTime === null) throw null;
+                    await errNotifier(errorMessage);
                     print(chalk.red(errorMessage));
                     await waitTimeFor(waitTime * 1000);
                     continue;

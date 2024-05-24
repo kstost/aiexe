@@ -157,6 +157,7 @@ export async function resultAssigning(python_code, result, messages_, history, a
 }
 export function defineNewMission(promptSession, history, mis, keep = false, allownewline = false) {
     if (isElectron()) allownewline = true;
+    if (isElectron()) if (!promptSession) promptSession = {};
     if (!allownewline) promptSession.prompt = mis.split('\n').join('').trim();
     else promptSession.prompt = mis;
     if (!keep) resetHistory(history);
