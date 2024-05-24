@@ -63,7 +63,16 @@
     "appId": "com.cokac.aiexe",
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "./assets/icon.icns"
+      "icon": "./assets/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "identity": "Kim seungtae"
     },
     "win": {
       "target": "nsis",
