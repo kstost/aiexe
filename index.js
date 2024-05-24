@@ -104,8 +104,10 @@ const apiMethods = {
         await turnOnOllamaAndGetModelList();
     },
     async ollamamodellist(body) {
+        // npm run start -- -a ollamamodellist '{}'
+        // && !await isKeyInConfig('OLLAMA_MODEL')
         let ollamaPath = (await which('ollama')).trim();
-        if (ollamaPath && !await isKeyInConfig('OLLAMA_MODEL')) {
+        if (ollamaPath) {
             try {
                 let list = await turnOnOllamaAndGetModelList();
                 if (list) {
