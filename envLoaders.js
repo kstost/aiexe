@@ -1,9 +1,9 @@
 /* global process */
-/* eslint-disable no-unused-vars, no-constant-condition */
+/* eslint-disable no-unused-vars, no-constant-condition, no-control-regex */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, generateModuleInstallCode, asPyModuleName } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal, openEndedPrompt, multipleChoicePrompt } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
@@ -67,8 +67,9 @@ export async function installProcess(greeting = false) {
         await createVENV();
         createdVENV = true;
     }
+    if (isElectron()) return;
     const venv_path = await getPythonVenvPath();
-    if (createdVENV && venv_path) {
+    if (!isElectron() && createdVENV && venv_path) {
         let answer = await multipleChoicePrompt('', 'Would you like to proceed with installing commonly used Python module packages such as requests, numpy and pillow?', ['YES', 'NO']);
         if (answer === 'YES') {
             await installModules('',

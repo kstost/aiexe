@@ -148,8 +148,7 @@ export async function makeVEnvCmd(pythonCmd, spawn = false) {
                     `"& '${activateCmd}'; & ${pythonCmd}"${nulluse ? `; $null = [System.Console]::In.Close()` : ''}`
                 ]
             ];
-
-            return [`${powershell}`, [`${powershell}`, `-NoProfile`, `-ExecutionPolicy`, `Bypass`, `-Command`, `"& '${activateCmd}'; & ${pythonCmd}${nulluse ? ` < nul` : ''}"`]];
+            // return [`${powershell}`, [`${powershell}`, `-NoProfile`, `-ExecutionPolicy`, `Bypass`, `-Command`, `"& '${activateCmd}'; & ${pythonCmd}${nulluse ? ` < nul` : ''}"`]];
         } else {
             let nulluse = isElectron();// && false;
             const bash_path = !isWindows() ? await which(`bash`) : null;

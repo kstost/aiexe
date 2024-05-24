@@ -54,13 +54,11 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
     if (!promptSession.prompt) return;
     if (!apimode || first) {
         defineNewMission(promptSession, history, promptSession.prompt);
-    } else {
-
     }
     while (true) {
-        if (true || isElectron()) {
-            // print('askforce', askforce);
-        }
+        // if (true || isElectron()) {
+        //     // print('askforce', askforce);
+        // }
         let python_code;
         let correct_code;
         let result2;
@@ -75,9 +73,14 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
             if (correct_code) {
                 code_saved_path = await shell_exec(python_code, true)
             }
-            if (result2.abort) break;
+            if (result2.abort) {
+                if (isElectron()) return { abortion: result2.abortReason };
+                break;
+            }
         } catch (e) {
+            // print(11111111111111111111111111, e)
             printError(e);
+            if (isElectron()) return { error: e };
             break;
         }
         const resForOpi = askforce === 'ask_opinion';
@@ -88,6 +91,15 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
 
         const mode = ['Execute Code', 'Re-Generate Code', 'Modify Prompt', 'Quit'];
         if (apimode) {
+            if (correct_code) python_code = [`# GENERATED CODE`,
+                `# This code is proposed for mission execution`,
+                // `# This code will be run in ${process.cwd()}`,
+                // `# This code file is actually located at ${code_saved_path.split('/').join(isWindows() ? '\\' : '/')} and you can review the code by opening this file.`,
+                `# Additional code included at the top of this file ensures smooth operation. For a more detailed review, it is recommended to open the actual file.`,
+                `# Please review the code carefully as it may cause unintended system behavior`,
+                ``,
+                `${python_code}`,
+            ].join('\n');
             return {
                 promptSession,
                 mode,

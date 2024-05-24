@@ -24,11 +24,29 @@ import { Command } from 'commander';
 import { promises as fsPromises } from 'fs';
 import os from 'os';
 import inquirer from 'inquirer';
+import singleton from './singleton.js';
 
+export async function reqRenderer(mode, arg) {
+    if (!isElectron()) return;
+    if (!singleton?.reqsAPI) return;
+    return await singleton?.reqsAPI(mode, arg);
+}
+export async function errNotifier(message) {
+    if (!isElectron()) return;
+    return await reqRenderer('errnotify', message)
+    /*
+        ask_prompt_text
+        openEndedPrompt
+        promptChoices
+        multipleChoicePrompt
+        inquirer.prompt    
+    */
+}
 export function isElectron() {
     return !!(process?.versions?.electron);
 }
 export async function promptChoices(choices, message) {
+    await errNotifier('Option selection input request error occurred');
     const indexedChoices = choices.map((choice, index) => `${index + 1} - ${choice}`);
     const answers = await inquirer.prompt([
         {

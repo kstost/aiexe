@@ -2,7 +2,7 @@
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron, errNotifier } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
@@ -27,25 +27,26 @@ import os from 'os';
 
 let oraMessageManager = null;
 export function oraSucceed(msg) {
-    if (isElectron()) return;
+    // if (isElectron()) return;
     if (!oraMessageManager) return;
     oraMessageManager?.odf?.succeed(msg);
     oraMessageManager = null;
 }
-export function oraFail(msg) {
-    if (isElectron()) return;
+export async function oraFail(msg) {
+    // if (isElectron()) return;
+    await errNotifier(msg)
     if (!oraMessageManager) return;
     oraMessageManager?.odf?.fail(msg);
     oraMessageManager = null;
 }
 export function oraStop() {
-    if (isElectron()) return;
+    // if (isElectron()) return;
     if (!oraMessageManager) return;
     oraMessageManager?.odf?.stop();
     oraMessageManager = null;
 }
 export function oraStart(msg) {
-    if (isElectron()) return;
+    // if (isElectron()) return;
     oraStop();
     if (!msg) return;
     let odf = ora(msg);
@@ -58,7 +59,7 @@ export function oraBackupAndStopCurrent() {
     return msg;
 }
 export function print() {
-    if (isElectron()) return;
+    // if (isElectron()) return;
     const msg = oraBackupAndStopCurrent();
     console.log(...arguments);
     oraStart(msg)

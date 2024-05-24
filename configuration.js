@@ -3,7 +3,7 @@
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, errNotifier } from './commons.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
@@ -40,12 +40,13 @@ export async function createVENV(silent = false, pythoncheck = null) {
         if (!silent) oraSucceed(chalk.greenBright('Creating virtual environment for Python successed'));
         return true;
     } else {
-        if (!silent) oraFail(chalk.redBright('Creating VENV fail'));
+        if (!silent) await oraFail(chalk.redBright('Creating VENV fail'));
         if (!silent) console.error(chalk.yellowBright(res.stdout))
         throw new Error('Creating VENV fail');
     }
 }
 export async function multipleChoicePrompt(key, prompt, options, force = false) {
+    await errNotifier('Multiple option selection input request error occurred');
     if (!key) {
         print(chalk.bold(prompt));
         return options[await promptChoices(options, `Enter your choice`, { cancel: false })];
@@ -57,6 +58,7 @@ export async function multipleChoicePrompt(key, prompt, options, force = false) 
     await setVarVal(key, options[index].toLowerCase(), force);
 }
 export async function openEndedPrompt(key, prompt, force = false) {
+    await errNotifier('Select subjective option, input request error occurred');
     if (!force) if (await isKeyInConfig(key)) return;
     let answer = await ask_prompt_text(prompt);
     await setVarVal(key, answer, force);

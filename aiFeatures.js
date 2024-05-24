@@ -2,7 +2,7 @@
 /* eslint-disable no-unused-vars, no-unreachable, no-constant-condition, no-constant-binary-expression */
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron, errNotifier } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable, llamaFamily } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
@@ -36,7 +36,7 @@ export function getContinousNetworkTryCount() {
 
 export async function aiChat(messages, parameters) {
     const USE_LLM = await getVarVal('USE_LLM');
-    if (singleton?.options?.debug === 'messages_payloads') {//isElectron()
+    if (singleton?.options?.debug === 'messages_payloads' || isElectron()) {//isElectron()
         const venv_path = await getPythonVenvPath();
         if (venv_path) {
             const logfile = `${venv_path}/messages_payloads.${getCurrentDateTime()}.json`;
@@ -117,6 +117,7 @@ export async function geminiChat(messages, parameters = { temperature: 0 }) {
             return python_code;
         } catch (e) {
             printError(e);
+            await errNotifier(`Requesting ${('gemini-pro')} failed`);
             indicator.fail(chalk.red(`Requesting ${chalk.bold('gemini-pro')} failed`));
             oraStart(tempMessageForIndicator);
 
@@ -158,6 +159,7 @@ export async function anthropicChat(messages, parameters = { temperature: 0 }) {
             return resd;
         } catch (e) {
             printError(e);
+            await errNotifier(`Requesting ${(ANTHROPIC_MODEL)} failed`);
             indicator.fail(chalk.red(`Requesting ${chalk.bold(ANTHROPIC_MODEL)} failed`));
             oraStart(tempMessageForIndicator);
 
@@ -210,6 +212,7 @@ export async function groqChat(messages, parameters = { temperature: 0 }) {
             return python_code;
         } catch (e) {
             printError(e);
+            await errNotifier(`Requesting ${(GROQ_MODEL)} failed`);
             indicator.fail(chalk.red(`Requesting ${chalk.bold(GROQ_MODEL)} failed`));
             oraStart(tempMessageForIndicator);
             if (e?.response?.data?.error?.code === 'rate_limit_exceeded') {
@@ -262,6 +265,7 @@ export async function openaiChat(messages, parameters = { temperature: 0 }) {
             return python_code;
         } catch (e) {
             printError(e);
+            await errNotifier(`Requesting ${(OPENAI_MODEL)} failed`);
             indicator.fail(chalk.red(`Requesting ${chalk.bold(OPENAI_MODEL)} failed`));
             oraStart(tempMessageForIndicator);
 
@@ -323,6 +327,7 @@ export async function ollamaChat(messages, parameters = { temperature: 0 }) {
                 break;
             } catch (e) {
                 printError(e);
+                await errNotifier(`Requesting ${(OLLAMA_MODEL)} failed`);
                 indicator.fail(chalk.red(`Requesting ${chalk.bold(OLLAMA_MODEL)} failed`));
                 oraStart(tempMessageForIndicator);
 
@@ -347,6 +352,7 @@ export async function ollamaChat(messages, parameters = { temperature: 0 }) {
                 break;
             } catch (e) {
                 printError(e);
+                await errNotifier(`Requesting ${(OLLAMA_MODEL)} failed`);
                 indicator.fail(chalk.red(`Requesting ${chalk.bold(OLLAMA_MODEL)} failed`));
                 oraStart(tempMessageForIndicator);
                 if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
@@ -554,6 +560,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
     const USE_LLM = await getVarVal('USE_LLM');
     let python_code = '';
     let abort = false;
+    let abortReason = '';
     let moduleInstall = true;
     try {
         while (true) {
@@ -579,6 +586,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     defineNewMission(promptSession, history, request);
                 } else {
                     abort = true;
+                    abortReason = 'no further req for responsed_code_is_invalid_syntax';
                     break;
                 }
                 askforce = '';
@@ -591,6 +599,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     defineNewMission(promptSession, history, request);
                 } else {
                     abort = true;
+                    abortReason = 'no further req for responsed_opinion';
                     break;
                 }
                 askforce = '';
@@ -602,7 +611,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 print('Please select an option:')
                 setContinousNetworkTryCount(0);
                 let mode = ['Create of a revised code', 'Modify Prompt', 'Quit'];
-                let index = await promptChoices(mode, `Enter your choice`, { cancel: false });
+                let index = isElectron() ? 2 : await promptChoices(mode, `Enter your choice`, { cancel: false });
                 if (index === 0) {
                     askforce = '';
                     continue;
@@ -628,6 +637,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 }
                 else if (index === 2) {
                     abort = true;
+                    abortReason = 'chosen Quit';
                     break;
                 }
                 print('')
@@ -651,13 +661,14 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                             continue;
                         }
                     }
-                    oraFail(chalk.redBright(message));
+                    await oraFail(chalk.redBright(message));
                     if (e.response.data.error.code === 'invalid_api_key') {
                         await disableVariable('OPENAI_API_KEY');
                         await installProcess(false);
                         continue;
                     } else {
                         abort = true;
+                        abortReason = 'Invalid OpenAI API Key';
                         break;
                     }
                 }
@@ -675,13 +686,14 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                             continue;
                         }
                     }
-                    oraFail(chalk.redBright(message));
+                    await oraFail(chalk.redBright(message));
                     if (e.response.data.error.code === 'invalid_api_key') {
                         await disableVariable('GROQ_API_KEY');
                         await installProcess(false);
                         continue;
                     } else {
                         abort = true;
+                        abortReason = 'Invalid GROQ API Key';
                         break;
                     }
                 }
@@ -690,7 +702,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     python_code = await aiChat(messages, parameters)
                 } catch (e) {
                     printError(e);
-                    oraFail(chalk.redBright(e.response.data.error.message));
+                    await oraFail(chalk.redBright(e.response.data.error.message));
                     // e.response.data.error 컨텍스트 윈도우를 넘치는 경우에 대한 처리 필요.
                     if (e.response.data.error.type === 'authentication_error') {
                         await disableVariable('ANTHROPIC_API_KEY');
@@ -698,6 +710,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                         continue;
                     } else {
                         abort = true;
+                        abortReason = 'Invalid Anthropic API Key';
                         break;
                     }
                 }
@@ -707,7 +720,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     python_code = await aiChat(messages, parameters);
                 } catch (e) {
                     printError(e);
-                    oraFail(chalk.redBright(e.response.data.error.message));
+                    await oraFail(chalk.redBright(e.response.data.error.message));
                     if (e.response.data.error.message.indexOf('API key not valid') > -1) {
                         await disableVariable('GOOGLE_API_KEY');
                         await installProcess(false);
@@ -716,9 +729,14 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     // e.response.data.error 컨텍스트 윈도우를 넘치는 경우에 대한 처리 필요.
                     if (e.response.data.error.status === 'INVALID_ARGUMENT') {
                         // 이 상황이 꼭 API키가 잘못되었을경우만 있는것은 아니다.
-                        if (true) process.exit(1);
+                        if (!isElectron()) { process.exit(1); } else {
+                            abort = true;
+                            abortReason = 'Invalid argument for google api';
+                            break;
+                        }
                     } else {
                         abort = true;
+                        abortReason = 'Invalid Anthropic API Key';
                         break;
                     }
                 }
@@ -737,7 +755,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
         oraSucceed(chalk.greenBright(`Generation succeeded with ${chalk.bold(await getModelName())}`))
     }
     oraStop();
-    const rst = { raw, err, correct_code: !!python_code, python_code, abort, usedModel: await getModelName() };
+    const rst = { raw, err, correct_code: !!python_code, python_code, abort, abortReason, usedModel: await getModelName() };
     return rst;
 }
 export async function isModelLlamas() {
@@ -792,14 +810,26 @@ export function resultTemplate(result) {
 export async function axiosPostWrap() {
     setContinousNetworkTryCount(getContinousNetworkTryCount() + 1)
     if (continousNetworkTryCount >= 10) {
-        process.exit(1);
+        if (!isElectron()) { process.exit(1); return; }
         return new Promise((resolve, reject) => {
-            reject(new Error('too many tries'));
+            // e.response.data.error.code
+            //new Error('too many tries')
+            reject({
+                response: {
+                    data: {
+                        error: {
+                            message: 'too many tries',
+                            code: -1
+                        }
+                    }
+                }
+            });
         })
     }
     return axios.post(...arguments);
 }
 export async function ask_prompt_text(prompt) {
+    await errNotifier('Natural language prompt input request error occurred');
     setContinousNetworkTryCount(0);
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     return await new Promise(resolve => {

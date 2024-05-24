@@ -194,7 +194,7 @@ export async function execInVenv(command, app) {
     return new Promise(async (resolve, reject) => {
         oraStart(`Executing code`);
         const python_interpreter_ = await getPythonPipPath(app.toLowerCase());
-        if (!python_interpreter_) { oraFail(chalk.red('Python Interpreter Not Found')); reject(new Error('Python Interpreter Not Found')); return; }
+        if (!python_interpreter_) { await oraFail(chalk.red('Python Interpreter Not Found')); reject(new Error('Python Interpreter Not Found')); return; }
         const pythonCmd = `'${python_interpreter_}' ${addslashes(command)}`;
         const child = shelljs.exec(await makeVEnvCmd(pythonCmd), { async: true, silent: true });
         attatchWatcher(child, resolve);

@@ -1,4 +1,3 @@
-/* global process */
 /* eslint-disable no-unused-vars, no-unreachable, no-constant-condition */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text, isModelLlamas } from './aiFeatures.js'
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, execPlain, getPowerShellPath, moduleValidator, generateModuleInstallCode } from './codeExecution.js'
@@ -95,7 +94,7 @@ export function errorPromptHandle(request, history, askforce, promptSession) {
             history.at(-1).content += `\n\nDon't say anything`;
             addHistory(history, { role: "assistant", content: '' });
             defineNewMission(promptSession, history, request, true); // dont remove
-            if (!isElectron()) false && print(JSON.stringify(history, undefined, 3));
+            // if (!isElectron()) false && print(JSON.stringify(history, undefined, 3));
         }
         if (askforce === 'nothing_responsed') defineNewMission(promptSession, history, request);
         if (!isElectron()) print('The request has been changed.\nRequesting again with the updated request.');

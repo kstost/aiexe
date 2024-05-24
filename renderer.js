@@ -1,4 +1,12 @@
-import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
+/* global CodeMirror */
+/* eslint-disable no-unused-vars, no-unreachable, no-constant-condition */
+// import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
+// const { ipcRenderer } = require('electron');
+
+// ipcRenderer.on('init', (event, data) => {
+//     console.log(data.message); // "Hello from Main Process!" 출력
+// });
+
 
 window.addEventListener('load', async () => {
     // console.log
@@ -24,6 +32,25 @@ window.addEventListener('load', async () => {
         removeLoading();
         return dt;
     }
+    window.electronAPI.receive('requesting', (arg) => {
+        let resValue = '';
+        let reqValue = arg.arg;
+        if (arg.mode === 'namee') {
+            resValue = reqValue;
+        }
+        if (arg.mode === 'errnotify') {
+            const err = document.createElement('div');
+            err.innerText = reqValue;
+            err.style.color = 'rgb(239 82 82)';
+            err.style.padding = '5px';
+            err.style.fontSize = '0.85em';
+            err.style.textAlign = 'center';
+            let explain = createConversationLine({ text: err, type: 2, parent: chatMessages });
+            // console.log('ERRR', reqValue);
+            resValue = reqValue;
+        }
+        window.electronAPI.send('resolving', { taskId: arg.taskId, arg: resValue });
+    });
     window.electronAPI.receive('response', (arg) => {
         let fn = queue[arg.taskId];
         delete queue[arg.taskId];
@@ -174,8 +201,7 @@ window.addEventListener('load', async () => {
             },
             conversationLine
         }
-        await reqAPI('savestate', { sessionDate, state });
-        await refreshList();
+        await reqAPI('savestate', { sessionDate, state }) && await refreshList();
     }
     function makeButton(name) {
         const execode = document.createElement('button');
@@ -190,6 +216,9 @@ window.addEventListener('load', async () => {
 
 
     async function resultProcedure(procResult) {
+        if (!procResult) throw null;
+        if (procResult.error) throw procResult;//.error;
+        if (procResult.abortion) throw procResult;//.abortion;
         first = false;
         currdata = procResult;
         promptSession = procResult.promptSession;
@@ -200,7 +229,7 @@ window.addEventListener('load', async () => {
         await saveState();
         seedata()
         if (procResult.correct_code) {
-            procResult.python_code = [`# GENERATED CODE`,
+            if (false) procResult.python_code = [`# GENERATED CODE`,
                 `# This code is proposed for mission execution`,
                 // `# This code will be run in ${process.cwd()}`,
                 // `# This code file is actually located at ${code_saved_path.split('/').join(isWindows() ? '\\' : '/')} and you can review the code by opening this file.`,
@@ -234,13 +263,30 @@ window.addEventListener('load', async () => {
         else {
             // 버튼 박스
             conversationLine = document.createElement('div');
-            conversationLine.classList.add('other')
+            if (type !== 2) conversationLine.classList.add('other')
         }
-        conversationLine.classList.add('message')
+        if (type !== 2) conversationLine.classList.add('message')
 
 
 
-        if (type === 4 || type === 1 || type === 3 || type === 5 || type === 6) { } else {
+        // if (type === 4 || type === 1 || type === 3 || type === 5 || type === 6 || type === 2) { } else {
+        //     if (text) {
+        //         if (typeof text === 'string') {
+        //             conversationLine.innerText = text;
+        //         } else {
+        //             conversationLine.appendChild(text);
+        //         }
+        //     }
+        // }
+        if (type === 1) {
+            parent.appendChild(conversationLine);
+            const cm = makeEditor(conversationLine, text, "text", true, null, true);
+            conversationLine[Symbol.for('state')] = () => {
+                return { type, cm: [cm] };
+            };
+        }
+        if (type === 2) {
+            parent.appendChild(conversationLine);
             if (text) {
                 if (typeof text === 'string') {
                     conversationLine.innerText = text;
@@ -248,13 +294,10 @@ window.addEventListener('load', async () => {
                     conversationLine.appendChild(text);
                 }
             }
-        }
-        if (type === 1) {
-            parent.appendChild(conversationLine);
-            const cm = makeEditor(conversationLine, text, "text", true, null, true);
-            conversationLine[Symbol.for('state')] = () => {
-                return { type, cm: [cm] };
-            };
+            // const cm = makeEditor(conversationLine, text, "text", true, null, true);
+            // conversationLine[Symbol.for('state')] = () => {
+            //     return { type, cm: [cm] };
+            // };
         }
         if (type === 3) {
             parent.appendChild(conversationLine);

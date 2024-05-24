@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-/* global process */
+/* global process, Buffer */
 /* eslint-disable no-unused-vars, no-unreachable, no-constant-condition */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text, isModelLlamas } from './aiFeatures.js'
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, execPlain, getPowerShellPath, moduleValidator, generateModuleInstallCode, neededPackageOfCode, procPlainText } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron, reqRenderer } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination, installModules } from './envLoaders.js'
@@ -67,8 +67,12 @@ const apiMethods = {
         const venv_path = await getPythonVenvPath();
         if (venv_path) {
             let statefile = `${venv_path}/state_${body.sessionDate}.json`;
+            let fex = await is_file(statefile);
             await fsPromises.writeFile(statefile, JSON.stringify(body.state));
+            let fex2 = await is_file(statefile);
+            return fex2 !== fex;
         }
+        return false;
         // body.state
     },
     async resetconfig(body) {
@@ -512,7 +516,7 @@ if (!isElectron()) {
             win.maximize(); // 창을 최대화합니다.
             win.show(); // 창을 보여줍니다.
             // if (process.env.NODE_ENV === 'development') {
-            //     win.webContents.openDevTools(); // 개발자 도구 열기
+            win.webContents.openDevTools(); // 개발자 도구 열기
             // }
         });
         globalShortcut.register('CommandOrControl+Shift+I', () => {
@@ -527,6 +531,11 @@ if (!isElectron()) {
         globalShortcut.register('CommandOrControl+R', () => {
             // 아무 작업도 하지 않습니다.
         });
+
+        singleton.electronWindow = win;
+        // async function reqsAPI() {
+        // }
+
 
 
     }
@@ -549,6 +558,37 @@ if (!isElectron()) {
         const result = await apiMethods[arg.mode](arg.arg)
         event.reply('response', { arg: result, taskId: arg.taskId });
     });
+
+
+
+
+
+    let counter = 0;
+    let queue = {};
+    function getUnique() { return ++counter; }
+    async function reqsAPI(mode, arg) {
+        if (!singleton?.electronWindow) return;
+        const mainWindow = singleton?.electronWindow;
+        let taskId = getUnique();
+        let _resolve;
+        let promise = new Promise(resolve => _resolve = resolve);
+        queue[taskId] = _resolve;
+        mainWindow.webContents.send('requesting', { mode, taskId, arg });
+        let dt = await promise;
+        return dt;
+    }
+    ipcMain.on('resolving', async (event, arg) => {
+        let fn = queue[arg.taskId];
+        delete queue[arg.taskId];
+        fn(arg.arg);
+    });
+    singleton.reqsAPI = reqsAPI;
+    // setTimeout(async () => {
+    //     console.log(await reqRenderer('errnotify', 123));
+    //     //     // win.webContents.send('response1', { message: 'Hello from Main Process!' });
+    //     //     console.log(await singleton?.reqsAPI('namee', { aaa: 33 }));
+    // }, 1000)
+
     //::ELECTRONCODE:://
 }
 //
