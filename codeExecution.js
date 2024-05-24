@@ -220,6 +220,7 @@ export function attatchWatcher(child, resolve, python_code, silent = false) {
     child.stderr.on('data', function (data) {
         oraStop();
         if (data.indexOf(`warnings.warn("`) > -1 && data.indexOf(`Warning: `) > -1) return;
+        if (data.indexOf(`WARNING: `) > -1 && data.indexOf(`Secure coding is automatically enabled for restorable state`) > -1) return;
         if (data.indexOf(`NotOpenSSLWarning`) > -1 && data.indexOf(`warnings.warn(`) > -1) return;
         stderr.push(data);
         if (!silent) process.stderr.write(chalk.red(data));
