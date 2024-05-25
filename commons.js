@@ -26,6 +26,13 @@ import os from 'os';
 import inquirer from 'inquirer';
 import singleton from './singleton.js';
 
+export async function currentLatestVersionOfGitHub() {
+    try {
+        let res = await axios.get(`https://raw.githubusercontent.com/kstost/aiexe/main/package.json`);
+        return (res.data.version);
+    } catch (e) { printError(e); }
+    return null;
+}
 export async function reqRenderer(mode, arg) {
     if (!isElectron()) return;
     if (!singleton?.reqsAPI) return;

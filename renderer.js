@@ -16,7 +16,21 @@ window.addEventListener('load', async () => {
     let currentInputViews;
     let counter = 0;
     let queue = {};
-    function getUnique() { return ++counter; }
+    let abortedTasks = {};
+    function getUnique() {
+        counter++;
+        return `${counter}.${new Date().getTime()}.${Math.random()}`;
+    }
+    async function abortAllTask() {
+        await Promise.all(Object.keys(queue).map(abortTask));
+    }
+    async function abortTask(taskId) {
+        let _resolve;
+        let promise = new Promise(resolve => _resolve = resolve);
+        abortedTasks[taskId] = _resolve;
+        window.electronAPI.send('aborting', { taskId: taskId });
+        await promise;
+    }
     async function reqAPI(mode, arg) {
         showLoading();
         if ('savestate' !== mode && 'getstatelist' !== mode) {
@@ -24,8 +38,12 @@ window.addEventListener('load', async () => {
         }
         let taskId = getUnique();
         let _resolve;
-        let promise = new Promise(resolve => _resolve = resolve);
-        queue[taskId] = _resolve;
+        let _reject;
+        let promise = new Promise((resolve, reject) => {
+            _resolve = resolve;
+            _reject = reject;
+        });
+        queue[taskId] = { _resolve, _reject };
         window.electronAPI.send('request', { mode, taskId, arg });
 
         let dt = await promise;
@@ -53,14 +71,27 @@ window.addEventListener('load', async () => {
         }
         window.electronAPI.send('resolving', { taskId: arg.taskId, arg: resValue });
     });
+    window.electronAPI.receive('aborting_queued', (arg) => {
+        let taskId = arg.taskId;
+        if (abortedTasks[taskId]) abortedTasks[taskId]();
+        queue[taskId]._reject();
+        delete abortedTasks[taskId];
+        delete queue[taskId];
+    });
     window.electronAPI.receive('response', (arg) => {
-        let fn = queue[arg.taskId];
+        let fnd = queue[arg.taskId];
+        if (!fnd) return; // because of abortion by renderer
         delete queue[arg.taskId];
-        fn(arg.arg);
+        fnd._resolve(arg.arg);
     });
     //----------------------------------------------------
+    // let resultAssignnewprompt = await reqAPI('assignnewprompt', { request: text, history: history_, promptSession, python_code: currdata.python_code });
+
+    const versioninfo = document.querySelector('#versioninfo');
+
+
     const inputarea = document.querySelector('.input-container div');
-    const button = document.querySelector('.input-container button');
+    const promptSendingButton = document.querySelector('.input-container button');
     const chatMessages = document.querySelector('#chat-messages');
     const talklist = document.querySelector('#talklist');
     const majore = document.querySelector('#majore');
@@ -87,18 +118,37 @@ window.addEventListener('load', async () => {
         loading?.remove();
         loading = null;
     }
-    button.addEventListener('click', e => {
-        entertir(chatEditor, chatEditor.getValue());
+    promptSendingButton.addEventListener('click', e => {
+        sendingPrompt(chatEditor, chatEditor.getValue());
         chatEditor.focus();
     })
 
-    let chatEditor = makeEditor(inputarea, '', "text", !true, entertir, true);
+    let chatEditor = makeEditor(inputarea, '', "text", !true, sendingPrompt, true);
     // chatEditor.setValue(`raise error don't catch just let it raise error`);
     let cline = [];
     window.cline = cline;
-    async function entertir(cm, text) {
+    async function sendingPrompt(cm, text) {
         if (loading) return;
         if (!text.trim()) return;
+        if (text.trim()[0] === '/') {
+            let commandLine = text.trim();
+            while (commandLine.indexOf('  ') > -1) commandLine = commandLine.split('  ').join(' ');
+            let args = commandLine.substring(1, Infinity).split(' ');
+            if (args[0] === 'reset_configuration_value') {
+                if (args[1]) {
+                    if (args[1] === 'remove_everything_even_history') {
+                        await reqAPI('resetconfig');
+                        await prepareVENV();
+                        await config();
+                    } else {
+                        await reqAPI('disableVariable', { value: args[1] });
+                        await config();
+                    }
+                }
+            }
+            cm.setValue('');
+            return;
+        }
         cm.setValue('');
         removeTools();
         if (true) {
@@ -106,7 +156,17 @@ window.addEventListener('load', async () => {
             cline.push(line);
             scrollSmoothToBottom();
             if (currentMode === 'waiting') {
-                await requestAI(text);
+                try {
+                    console.log(4444);
+                    await requestAI(text);
+                    console.log(4447744);
+                } catch (e) {
+                    console.log('abort', e);
+                    if (e === 10001) {
+                        console.log('렌더러에 의한 중단')
+                        /* 렌더러에 의한 중단*/
+                    }
+                }
             }
             else if (currentMode === 'choosing') {
                 currentInputViews.remove();
@@ -115,7 +175,15 @@ window.addEventListener('load', async () => {
                 history_ = resultAssignnewprompt.history
                 setAskForce(resultAssignnewprompt.askforce)
                 await saveState();
-                await requestAI(text);
+                try {
+                    await requestAI(text);
+                } catch (e) {
+                    console.log('abort', e);
+                    if (e === 10001) {
+                        console.log('렌더러에 의한 중단');
+                        /* 렌더러에 의한 중단*/
+                    }
+                }
             } else if (currentMode === 'run_code_causes_error') {
                 currentInputViews.remove();
                 setAskForce(currentMode)
@@ -124,7 +192,15 @@ window.addEventListener('load', async () => {
                 setAskForce('');
                 promptSession = resultErrorprompthandle.promptSession
                 await saveState();
-                await requestAI(text);
+                try {
+                    await requestAI(text);
+                } catch (e) {
+                    console.log('abort', e);
+                    if (e === 10001) {
+                        console.log('렌더러에 의한 중단');
+                        /* 렌더러에 의한 중단*/
+                    }
+                }
             }
         }
     }
@@ -223,9 +299,10 @@ window.addEventListener('load', async () => {
 
 
     async function resultProcedure(procResult) {
-        if (!procResult) throw null;
-        if (procResult.error) throw procResult;//.error;
-        if (procResult.abortion) throw procResult;//.abortion;
+        if (!procResult) throw 10000;
+        if (procResult.abortedByRenderer) throw 10001;
+        if (procResult.error) throw 10002;
+        if (procResult.abortion) throw 10003;
         first = false;
         currdata = procResult;
         promptSession = procResult.promptSession;
@@ -350,7 +427,15 @@ window.addEventListener('load', async () => {
                         toolBtn.remove();
                         setAskForce('');
                         await saveState();
-                        await requestAI(promptSession.prompt);
+                        try {
+                            await requestAI(promptSession.prompt);
+                        } catch (e) {
+                            console.log('abort', e);
+                            if (e === 10001) {
+                                console.log('렌더러에 의한 중단');
+                                /* 렌더러에 의한 중단*/
+                            }
+                        }
                         return;
                     });
                     toolBtn.appendChild(execode);
@@ -509,7 +594,15 @@ window.addEventListener('load', async () => {
                     cline.push(resultContainer);
                     await saveState();
                     if (getAskForce() === "ask_opinion") {
-                        await requestAI(promptSession.prompt);
+                        try {
+                            await requestAI(promptSession.prompt);
+                        } catch (e) {
+                            console.log('abort', e);
+                            if (e === 10001) {
+                                console.log('렌더러에 의한 중단');
+                                /* 렌더러에 의한 중단*/
+                            }
+                        }
                         return;
                     }
 
@@ -524,7 +617,15 @@ window.addEventListener('load', async () => {
                     cline.pop();
                     setAskForce('re-generate');
                     await saveState();
-                    await requestAI(promptSession.prompt);
+                    try {
+                        await requestAI(promptSession.prompt);
+                    } catch (e) {
+                        console.log('abort', e);
+                        if (e === 10001) {
+                            console.log('렌더러에 의한 중단');
+                            /* 렌더러에 의한 중단*/
+                        }
+                    }
                 });
 
                 choosebox.appendChild(execode);
@@ -605,6 +706,7 @@ window.addEventListener('load', async () => {
                 li.innerText = `새 대화`;
             }
             li.addEventListener('click', async e => {
+                await abortAllTask();
                 chatEditor.focus();
                 chatMessages.innerText = '';
                 cline.splice(0, Infinity);
@@ -948,6 +1050,18 @@ window.addEventListener('load', async () => {
     let els = await refreshList();
     if (els[0]) els[0]?.click()
 
+
+    async function refreshVersionInfo() {
+        let vinfo = await reqAPI('versioninfo');
+        versioninfo.innerHTML = [
+            `${vinfo.client ? `<div style="font-size: 0.7em;opacity: 0.3;">${vinfo.client}</div>` : ''}`,
+            `${vinfo.client !== vinfo.latest ? '<div style="font-size: 0.7em;color:yellow;font-weight:bold;cursor:pointer;" id="newavail">New Version Available</div>' : ''}`,
+        ].join('');
+        document.querySelector('#newavail')?.addEventListener('click', async e => {
+            await reqAPI('open', { value: 'https://cokac.com/list/announcement/6' })
+        })
+    }
+    await refreshVersionInfo();
 
 
 

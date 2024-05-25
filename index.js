@@ -4,7 +4,7 @@
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text, isModelLlamas } from './aiFeatures.js'
 import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, execPlain, getPowerShellPath, moduleValidator, generateModuleInstallCode, neededPackageOfCode, procPlainText } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
-import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron, reqRenderer } from './commons.js'
+import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron, reqRenderer, currentLatestVersionOfGitHub } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination, installModules } from './envLoaders.js'
@@ -38,7 +38,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.152'; // version
+const VERSION = '1.0.153'; // version
 
 const apiMethods = {
     async getstate(body) {
@@ -74,6 +74,11 @@ const apiMethods = {
         }
         return false;
         // body.state
+    },
+    async versioninfo(body) {
+        let latest = await currentLatestVersionOfGitHub()// (res.data.version);
+        let client = VERSION
+        return { latest, client };
     },
     async resetconfig(body) {
         // node index.js -a resetconfig
@@ -228,8 +233,8 @@ if (!isElectron()) {
             try {
                 const update_check = await getVarVal('UPDATE_CHECK')
                 if (!update_check || update_check.toLowerCase() === 'no') throw null;
-                let res = await axios.get(`https://raw.githubusercontent.com/kstost/aiexe/main/package.json`);
-                latestVersion = (res.data.version);
+                // let res = await axios.get(`https://raw.githubusercontent.com/kstost/aiexe/main/package.json`);
+                latestVersion = await currentLatestVersionOfGitHub()// (res.data.version);
                 if (latestVersion === VERSION) latestVersion = null;
             } catch (e) { printError(e); }
             await figlet.text(
@@ -518,8 +523,8 @@ if (!isElectron()) {
         if (true) win.once('ready-to-show', () => {
             win.maximize(); // 창을 최대화합니다.
             win.show(); // 창을 보여줍니다.
-            // if (process.env.NODE_ENV === 'development') {
             // win.webContents.openDevTools(); // 개발자 도구 열기
+            // if (process.env.NODE_ENV === 'development') {
             // }
         });
         globalShortcut.register('CommandOrControl+Shift+I', () => {
@@ -557,9 +562,21 @@ if (!isElectron()) {
         }
     });
 
+    let abortQueue = {};
     ipcMain.on('request', async (event, arg) => {
         const result = await apiMethods[arg.mode](arg.arg)
-        event.reply('response', { arg: result, taskId: arg.taskId });
+        if (abortQueue[arg.taskId]) {
+            delete abortQueue[arg.taskId];
+            event.reply('response', { arg: null, abortedByRenderer: true, taskId: arg.taskId });
+        } else {
+            event.reply('response', { arg: result, taskId: arg.taskId });
+        }
+    });
+    ipcMain.on('aborting', async (event, arg) => {
+        abortQueue[arg.taskId] = true;
+        // arg.taskIds.forEach(taskId => {
+        // });
+        event.reply('aborting_queued', arg);
     });
 
 
