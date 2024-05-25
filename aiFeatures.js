@@ -89,6 +89,7 @@ export async function geminiChat(messages, parameters = { temperature: 0 }, task
                 contents: clonedMessage
             }, { headers: { 'content-type': 'application/json' } });
             try {
+                if (isTaskAborted(taskId)) return '';
                 python_code = response.data.candidates[0].content.parts[0].text;
             } catch (errorInfo) {
                 printError(errorInfo);
@@ -137,6 +138,7 @@ export async function anthropicChat(messages, parameters = { temperature: 0 }, t
                     'content-type': 'application/json'
                 }
             });
+            if (isTaskAborted(taskId)) return '';
             let resd = response.data.content[0].text;
             indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(ANTHROPIC_MODEL)} succeeded`));
             await oraStart(tempMessageForIndicator);
@@ -185,7 +187,7 @@ export async function groqChat(messages, parameters = { temperature: 0 }, taskId
                 response: {
                     data: {
                         error: {
-                            message: 'aborted by renderer',
+                            message: '',//aborted by renderer
                             code: -1
                         }
                     }
@@ -206,6 +208,7 @@ export async function groqChat(messages, parameters = { temperature: 0 }, taskId
             completion = await axiosPostWrap('https://api.groq.com/openai/v1/chat/completions', { ...parameters, model: GROQ_MODEL, messages, }, {
                 headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' }
             });
+            if (isTaskAborted(taskId)) return '';
             let python_code = completion.data.choices[0].message.content;
             indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(GROQ_MODEL)} succeeded`));
             await oraStart(tempMessageForIndicator);
@@ -259,7 +262,7 @@ export async function openaiChat(messages, parameters = { temperature: 0 }, task
                 response: {
                     data: {
                         error: {
-                            message: 'aborted by renderer',
+                            message: '',//aborted by renderer
                             code: -1
                         }
                     }
@@ -275,6 +278,7 @@ export async function openaiChat(messages, parameters = { temperature: 0 }, task
             completion = await axiosPostWrap('https://api.openai.com/v1/chat/completions', { ...parameters, model: OPENAI_MODEL, messages }, {
                 headers: { 'Authorization': `Bearer ${await getVarVal('OPENAI_API_KEY')}`, 'Content-Type': 'application/json' }
             });
+            if (isTaskAborted(taskId)) return '';
             let python_code = completion.data.choices[0].message.content;
             indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(OPENAI_MODEL)} succeeded`));
             await oraStart(tempMessageForIndicator);
@@ -340,6 +344,7 @@ export async function ollamaChat(messages, parameters = { temperature: 0 }, task
             let indicator = ora((`Requesting ${chalk.bold(OLLAMA_MODEL)}`)).start()
             try {
                 airesponse = await axiosPostWrap(OLLAMA_PROXY_SERVER, { proxybody: { model: OLLAMA_MODEL, stream: false, options, messages } });
+                if (isTaskAborted(taskId)) return '';
                 indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(OLLAMA_MODEL)} succeeded`));
                 await oraStart(tempMessageForIndicator);
                 break;
@@ -365,6 +370,7 @@ export async function ollamaChat(messages, parameters = { temperature: 0 }, task
             let indicator = ora((`Requesting ${chalk.bold(OLLAMA_MODEL)}`)).start()
             try {
                 airesponse = await axiosPostWrap('http://127.0.0.1:11434/api/chat', { model: OLLAMA_MODEL, stream: false, options, messages });
+                if (isTaskAborted(taskId)) return '';
                 indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(OLLAMA_MODEL)} succeeded`));
                 await oraStart(tempMessageForIndicator);
                 break;
@@ -584,7 +590,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
         while (true) {
             if (isTaskAborted(taskId)) {
                 abort = true;
-                abortReason = 'aborted by renderer';
+                abortReason = '';//aborted by renderer
                 break;
             }
             // if()
@@ -853,7 +859,9 @@ export async function axiosPostWrap() {
             });
         })
     }
-    return axios.post(...arguments);
+    let res = axios.post(...arguments);
+    // isTaskAborted(taskId)
+    return res;
 }
 export async function ask_prompt_text(prompt) {
     await errNotifier('Natural language prompt input request error occurred');
