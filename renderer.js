@@ -515,17 +515,27 @@ window.addEventListener('load', async () => {
 
 
             const title = document.createElement('div');
-            title.style.color = 'rgba(255,255,255,0.4)';
+            // title.style.color = 'rgba(255,255,255,0.4)';
             title.style.display = 'inline-block'
             title.innerText = `Missing Module Installataion`;
             title.style.marginBottom = '5px';
+            title.style.fontFamily = 'monospace';
+            title.style.paddingTop = '10px';
+            title.style.paddingLeft = '10px';
+            title.style.paddingRight = '10px';
             conversationLine.appendChild(title);
 
+
+            //font-family:monospace;opacity:0.7;font-size:0.85em
             const message = document.createElement('div');
-            message.style.color = 'rgba(255,255,255,0.4)';
+            message.style.opacity = '0.7';
             message.style.display = 'inline-block'
             message.innerText = `Here are the Python module packages that are required to execute the code but are currently missing from the virtual environment. Please select the packages you wish to install and proceed with the installation. Note that there might be mistakes in the package names due to AI errors, so please be cautious.`;
-            message.style.fontSize = '0.8em';
+            message.style.fontSize = '0.85em';
+            message.style.fontFamily = 'monospace';
+            message.style.paddingLeft = '10px';
+            message.style.paddingRight = '10px';
+            message.style.paddingBottom = '5px';
             conversationLine.appendChild(message);
 
             const toolBtnd = document.createElement('button');
@@ -535,6 +545,7 @@ window.addEventListener('load', async () => {
                 df.style.display = 'inline-block';
                 df.style.padding = '5px';
                 df.style.margin = '5px';
+                df.style.fontFamily = 'monospace';
                 df.style.cursor = 'pointer';
                 df.innerText = modulelistOb[name];
                 let toggle = false;
@@ -598,6 +609,21 @@ window.addEventListener('load', async () => {
         if (type === 5) {
             parent.appendChild(conversationLine);
 
+            const notifymessage = document.createElement('div');
+            notifymessage.style.display = 'block';
+            notifymessage.style.width = '100%'
+            notifymessage.style.textAlign = 'right'
+            notifymessage.style.padding = '20px'
+            let msgd = [
+                `<div style="text-align:left;font-family:monospace;font-size:1em;padding-bottom:4px">GENERATED CODE</div>`,
+                `<div style="text-align:left;font-family:monospace;opacity:0.7;font-size:0.85em">This code is proposed for mission execution</div>`,
+                `<div style="text-align:left;font-family:monospace;opacity:0.7;font-size:0.85em">Additional code included at the top of this file ensures smooth operation. For a more detailed review, it is recommended to open the actual file.</div>`,
+                `<div style="text-align:left;font-family:monospace;opacity:0.7;font-size:0.85em">Please review the code carefully as it may cause unintended system behavior</div>`,
+                `<div style="text-align:left;font-family:monospace;opacity:0.7;font-size:0.85em">You can modify this code before execute</div>`,
+            ].join('');
+            notifymessage.innerHTML = msgd;
+
+
             const choosebox = document.createElement('div');
             choosebox.style.display = 'block';
             choosebox.style.width = '100%'
@@ -609,6 +635,7 @@ window.addEventListener('load', async () => {
             // (restore&&!last)
 
 
+            conversationLine.appendChild(notifymessage);
             const cm = makeEditor(conversationLine, text, "python", (restore && !last))
             conversationLine.appendChild(choosebox);
             conversationLine[Symbol.for('state')] = () => {

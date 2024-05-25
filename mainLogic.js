@@ -91,7 +91,7 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
 
         const mode = ['Execute Code', 'Re-Generate Code', 'Modify Prompt', 'Quit'];
         if (apimode) {
-            if (correct_code) python_code = [`# GENERATED CODE`,
+            if (false && correct_code) python_code = [`# GENERATED CODE`,
                 `# This code is proposed for mission execution`,
                 // `# This code will be run in ${process.cwd()}`,
                 // `# This code file is actually located at ${code_saved_path.split('/').join(isWindows() ? '\\' : '/')} and you can review the code by opening this file.`,
