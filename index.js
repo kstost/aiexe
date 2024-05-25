@@ -38,7 +38,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.155'; // version
+const VERSION = '1.0.156'; // version
 
 const apiMethods = {
     async venvpath(body) {
@@ -120,7 +120,7 @@ const apiMethods = {
         // npm run start -- -a ollamamodellist '{}'
         // && !await isKeyInConfig('OLLAMA_MODEL')
         let ollamaPath = (await which('ollama')).trim();
-        if (ollamaPath) {
+        if (ollamaPath || isElectron()) { // 수정이 필요함... 일렉트론 통과하게 하는거..
             try {
                 let list = await turnOnOllamaAndGetModelList();
                 if (list) {

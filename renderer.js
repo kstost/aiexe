@@ -748,11 +748,39 @@ window.addEventListener('load', async () => {
                 }
             },
             {
+                name: 'API Key 재설정', async trg() {
+                    let apiasking = [
+                        { llmname: 'openai', key: 'OPENAI_API_KEY', title: `What is your OpenAI API key for accessing OpenAI services?` },
+                        { llmname: 'groq', key: 'GROQ_API_KEY', title: `What is your GROQ API key for accessing GROQ services?` },
+                        { llmname: 'anthropic', key: 'ANTHROPIC_API_KEY', title: `What is your Anthropic API key for accessing Anthropic services?` },
+                        { llmname: 'gemini', key: 'GOOGLE_API_KEY', title: `What is your Gemini API key for accessing Gemini services?` },
+                    ];
+                    const use_llm = await reqAPI('getconfig', { key: 'USE_LLM' });
+                    await new Promise(r => requestAnimationFrame(r));
+                    await new Promise(r => requestAnimationFrame(r));
+                    if (!confirm(`현재 설정된 ${use_llm}의 API키를 제거하고 재설정하시겠습니까?`)) {
+                        return;
+                    }
+                    for (let i = 0; i < apiasking.length; i++) {
+                        const { key, title, llmname } = apiasking[i];
+                        if (llmname === use_llm) {
+                            await reqAPI('disableVariable', { value: key });
+                        }
+                    }
+                    await config();
+                }
+            },
+            {
                 name: '모든 설정 초기화', async trg() {
                     if (confirm('모든 설정을 초기화 하시겠습니까? 대화기록도 모두 제거됩니다.')) {
+                        await abortAllTask();
                         await reqAPI('resetconfig');
                         await prepareVENV();
                         await config();
+                        // await refreshList();
+                        let els = await refreshList();
+                        if (els[0]) els[0]?.click()
+
                     }
                 }
             },
