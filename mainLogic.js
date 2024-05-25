@@ -8,7 +8,7 @@ import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, 
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination, installModules } from './envLoaders.js'
-import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print, strout } from './oraManager.js'
 import { resetHistory, addMessages, addHistory, summarize, resultAssigning, defineNewMission, assignNewPrompt, } from './promptManager.js'
 import promptTemplate from './translationPromptTemplate.js';
 import singleton from './singleton.js';
@@ -46,7 +46,12 @@ export function codeDisplay(mission, python_code, code_saved_path) {
             theme: colors
         }))
 }
-export async function mainApp(promptSession, apimode = false, history = [], messages_ = [], askforce = '', summary, first = false) {
+export function isTaskAborted(taskId) {
+    if (!isElectron()) return false;
+    if (!taskId) return false;
+    return !!(singleton.abortQueue[taskId]);
+}
+export async function mainApp(promptSession, apimode = false, history = [], messages_ = [], askforce = '', summary, first = false, taskId = null) {
     if (!apimode) {
         await checkPythonForTermination();
         await installProcess(false);
@@ -56,18 +61,14 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
         defineNewMission(promptSession, history, promptSession.prompt);
     }
     while (true) {
-        // if (true || isElectron()) {
-        //     // print('askforce', askforce);
-        // }
+        if (isTaskAborted(taskId)) break;
         let python_code;
         let correct_code;
         let result2;
         let code_saved_path;
         try {
             summary = await summarize(messages_, summary, limitline, annn, apimode);
-            // print(111111, JSON.stringify(history, undefined, 3), askforce);
-            result2 = await code_generator(summary, messages_, history, askforce, promptSession);
-            // print(222222, JSON.stringify(history, undefined, 3), askforce);
+            result2 = await code_generator(summary, messages_, history, askforce, promptSession, 1, taskId);
             python_code = result2.python_code;
             correct_code = result2.correct_code;
             if (correct_code) {
@@ -78,7 +79,6 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
                 break;
             }
         } catch (e) {
-            // print(11111111111111111111111111, e)
             printError(e);
             if (isElectron()) return { error: e };
             break;
@@ -86,7 +86,7 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
         const resForOpi = askforce === 'ask_opinion';
         if (resForOpi) { askforce = ''; }
         if (!correct_code) {
-            askforce = procPlainText(messages_, history, result2, resForOpi, apimode).askforce;
+            askforce = (await procPlainText(messages_, history, result2, resForOpi, apimode)).askforce;
         }
 
         const mode = ['Execute Code', 'Re-Generate Code', 'Modify Prompt', 'Quit'];
@@ -119,24 +119,24 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
 
         if (correct_code) {
             if (!apimode) {
-                print(chalk.gray.bold('─'.repeat(measureColumns(0))));
-                print(codeDisplay(promptSession.prompt, python_code, code_saved_path))
-                print(chalk.gray.bold('─'.repeat(measureColumns(0))));
-                print('Please select an option:')
+                await strout(chalk.gray.bold('─'.repeat(measureColumns(0))));
+                await strout(codeDisplay(promptSession.prompt, python_code, code_saved_path))
+                await strout(chalk.gray.bold('─'.repeat(measureColumns(0))));
+                await strout('Please select an option:')
             }
             setContinousNetworkTryCount(0);
             const index = await promptChoices(mode, `Enter your choice`, { cancel: false });
             if (index === 0) {
-                if (!apimode) print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
+                if (!apimode) await strout(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
                 const neededPackages = await neededPackageOfCode(python_code);
                 if (neededPackages) {
-                    if (!apimode) print(chalk.bold(`Missing Module Installataion`));
-                    if (!apimode) print(`The following module installation commands installs any missing modules required for this Python code.`);
-                    if (!apimode) print(`Please ensure that the module names in the installation commands are correct before running the command.`);
+                    if (!apimode) await strout(chalk.bold(`Missing Module Installataion`));
+                    if (!apimode) await strout(`The following module installation commands installs any missing modules required for this Python code.`);
+                    if (!apimode) await strout(`Please ensure that the module names in the installation commands are correct before running the command.`);
                     await installModules('', neededPackages)
                 }
                 const result = await shell_exec(python_code, false);
-                if (!apimode) print(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
+                if (!apimode) await strout(chalk.hex('#222222').bold('─'.repeat(measureColumns(0))));
                 const assigned = await resultAssigning(python_code, result, messages_, history, apimode);
                 askforce = assigned.askforce;
             }
@@ -144,7 +144,7 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
                 askforce = 're-generate';
             }
             else if (index === 2) {
-                if (!apimode) print(`Previous prompt: ${chalk.bold(promptSession.prompt)}`);
+                if (!apimode) await strout(`Previous prompt: ${chalk.bold(promptSession.prompt)}`);
                 const request = (await ask_prompt_text(`Modify Prompt`)).trim();
                 const assign = await assignNewPrompt(request, history, promptSession, python_code, apimode);
                 askforce = assign.askforce;
@@ -153,6 +153,6 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
         }
         continue;
     }
-    if (!apimode) print(boxen(chalk.gray.bold(` Bye for now `), { padding: 0, margin: 0, borderStyle: 'single', borderColor: 'gray' }));
-    if (!apimode) print(chalk.gray(`Subscribe my YouTube Channel(https://www.youtube.com/@codeteller)`));
+    if (!apimode) await strout(boxen(chalk.gray.bold(` Bye for now `), { padding: 0, margin: 0, borderStyle: 'single', borderColor: 'gray' }));
+    if (!apimode) await strout(chalk.gray(`Subscribe my YouTube Channel(https://www.youtube.com/@codeteller)`));
 }

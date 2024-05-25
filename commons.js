@@ -6,7 +6,7 @@ import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
-import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print, strout } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
@@ -25,6 +25,7 @@ import { promises as fsPromises } from 'fs';
 import os from 'os';
 import inquirer from 'inquirer';
 import singleton from './singleton.js';
+import stripAnsi from 'strip-ansi';
 
 export async function currentLatestVersionOfGitHub() {
     try {
@@ -38,7 +39,21 @@ export async function reqRenderer(mode, arg) {
     if (!singleton?.reqsAPI) return;
     return await singleton?.reqsAPI(mode, arg);
 }
-export async function errNotifier(message) {
+export async function outNotifier(message, leave = false) {
+    if (leave) await letNotifier();
+    if (!isElectron()) return;
+    return await reqRenderer('outnotify', message)
+}
+export async function disNotifier(message) {
+    if (!isElectron()) return;
+    return await reqRenderer('disnotify', message)
+}
+export async function letNotifier(message) {
+    if (!isElectron()) return;
+    return await reqRenderer('letnotify', message)
+}
+export async function errNotifier(message, leave = false) {
+    if (leave) await letNotifier();
     if (!isElectron()) return;
     return await reqRenderer('errnotify', message)
     /*
@@ -72,7 +87,7 @@ export async function promptChoices(choices, message) {
 }
 export function printError(e) {
     if (!traceError) return;
-    print(e);
+    console.log(e);
 }
 export function isBadStr(ppath) {
     if (ppath.indexOf(`"`) > -1) return !false;

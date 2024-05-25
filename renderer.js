@@ -50,23 +50,50 @@ window.addEventListener('load', async () => {
         removeLoading();
         return dt;
     }
+    let oneLineMessageIndicator;
+    function showIndicator(text) {
+        oneLineMessageIndicator?.remove();
+        if (!text) return;
+        if (typeof text === 'string') {
+            const element = document.createElement('div');
+            element.innerText = text;
+            element.style.color = 'rgb(255,255,255,0.6)';
+            text = element;
+        }
+        text.style.padding = '10px';
+        text.style.textAlign = 'center';
+        text.style.fontFamily = 'monospace';
+        oneLineMessageIndicator = createConversationLine({ text: text, type: 2, parent: chatMessages });
+        scrollSmoothToBottom();
+    }
     window.electronAPI.receive('requesting', (arg) => {
         let resValue = '';
         let reqValue = arg.arg;
         if (arg.mode === 'namee') {
             resValue = reqValue;
         }
+        if (arg.mode === 'letnotify') {
+            oneLineMessageIndicator = null;
+        }
+        if (arg.mode === 'disnotify') {
+            showIndicator(null)
+        }
         if (arg.mode === 'errnotify') {
             const err = document.createElement('div');
             err.innerText = reqValue;
             err.style.color = 'rgb(239 82 82)';
-            err.style.padding = '10px';
-            // err.style.fontSize = '0.85em';
-            err.style.textAlign = 'center';
             removeLoading();
-            let explain = createConversationLine({ text: err, type: 2, parent: chatMessages });
+            showIndicator(err)
             showLoading();
-            // console.log('ERRR', reqValue);
+            resValue = reqValue;
+        }
+        if (arg.mode === 'outnotify') {
+            const err = document.createElement('div');
+            err.innerText = reqValue;
+            err.style.color = '#5fc868';
+            removeLoading();
+            showIndicator(err)
+            showLoading();
             resValue = reqValue;
         }
         window.electronAPI.send('resolving', { taskId: arg.taskId, arg: resValue });
@@ -102,6 +129,7 @@ window.addEventListener('load', async () => {
             behavior: smooth ? 'smooth' : undefined
         });
     }
+    await aiIndicator();
 
     let loading = null;
     function showLoading() {
@@ -150,6 +178,7 @@ window.addEventListener('load', async () => {
             cm.setValue('');
             return;
         }
+        showIndicator(null);
         cm.setValue('');
         removeTools();
         if (true) {
@@ -158,11 +187,8 @@ window.addEventListener('load', async () => {
             scrollSmoothToBottom();
             if (currentMode === 'waiting') {
                 try {
-                    console.log(4444);
                     await requestAI(text);
-                    console.log(4447744);
                 } catch (e) {
-                    console.log('abort', e);
                     if (e === 10001) {
                         console.log('렌더러에 의한 중단')
                         /* 렌더러에 의한 중단*/
@@ -212,7 +238,15 @@ window.addEventListener('load', async () => {
     let messages_ = [];
     let summary = '';
     let promptSession;
-    async function aiIndicator() {
+    async function aiIndicator(load = false) {
+        poweredby.innerHTML = [
+            `<div style="text-align:center;padding:5px;">`,
+            `<span style="opacity:0.5;font-size:0.8em;opacity:0;">Powered by </span>`,
+            `<span style="font-size:0.8em;opacity:0;">checking</span>`,
+            `</div>`,
+        ].join('');
+        if (!load) return;
+        // return;
         const vendorName = await reqAPI('getconfig', { key: 'USE_LLM' });
         let modelName = '';
         if (vendorName === 'openai') modelName = await reqAPI('getconfig', { key: 'OPENAI_MODEL' });//kn = ('OPENAI_MODEL');
@@ -587,7 +621,7 @@ window.addEventListener('load', async () => {
                 execode.addEventListener('click', async e => {
                     chatEditor.focus();
                     choosebox.remove();
-                    let codeBody = (cm.getValue()?.split('\n')).filter(line => line.trim()[0] !== '#').join('\n')
+                    let codeBody = (cm.getValue()?.split('\n'))?.filter(line => line?.trim()[0] !== '#').join('\n')
                     let neededPackageListOfObject = await reqAPI('neededpackages', { python_code: codeBody });
                     if (neededPackageListOfObject) {
                         let packageList = Object.keys(neededPackageListOfObject);
@@ -1019,7 +1053,7 @@ window.addEventListener('load', async () => {
             }
         }
         container.remove();
-        await aiIndicator();
+        await aiIndicator(true);
 
     }
 
@@ -1100,7 +1134,15 @@ window.addEventListener('load', async () => {
 
 
     async function refreshVersionInfo() {
-        let vinfo = await reqAPI('versioninfo');
+        let vinfo = {
+            client: 'checking',
+            latest: 'checking',
+        }
+        versioninfo.innerHTML = [
+            `${vinfo.client ? `<div style="font-size: 0.7em;opacity: 0;">${vinfo.client}</div>` : ''}`,
+            `${vinfo.client !== vinfo.latest ? '<div style="opacity: 0;font-size: 0.7em;color:yellow;font-weight:bold;cursor:pointer;" id="newavail">New Version Available</div>' : ''}`,
+        ].join('');
+        vinfo = await reqAPI('versioninfo');
         versioninfo.innerHTML = [
             `${vinfo.client ? `<div style="font-size: 0.7em;opacity: 0.3;">${vinfo.client}</div>` : ''}`,
             `${vinfo.client !== vinfo.latest ? '<div style="font-size: 0.7em;color:yellow;font-weight:bold;cursor:pointer;" id="newavail">New Version Available</div>' : ''}`,
@@ -1110,7 +1152,6 @@ window.addEventListener('load', async () => {
         })
     }
     await refreshVersionInfo();
-    await aiIndicator();
     await prepareVENV();
     await config();
 

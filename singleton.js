@@ -1,12 +1,13 @@
 /* eslint-disable no-unused-vars */
 import chalk from 'chalk';
-import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print, strout } from './oraManager.js'
 const singleton = {
-    debug(data, scopename) {
+    abortQueue: {},
+    async debug(data, scopename) {
         const optionscopename = singleton?.options?.debug;
         if (!scopename || !optionscopename) return;
         if (optionscopename !== scopename) return;
-        print(chalk.red(scopename), (data));
+        await strout(chalk.red(scopename), (data));
     }
 };
 export default singleton;

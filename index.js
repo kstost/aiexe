@@ -8,7 +8,7 @@ import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, 
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable, devmode } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination, installModules } from './envLoaders.js'
-import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print, strout } from './oraManager.js'
 import { resetHistory, addMessages, addHistory, summarize, resultAssigning, defineNewMission, assignNewPrompt, errorPromptHandle, } from './promptManager.js'
 import { mainApp, } from './mainLogic.js'
 import promptTemplate from './translationPromptTemplate.js';
@@ -38,7 +38,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.154'; // version
+const VERSION = '1.0.155'; // version
 
 const apiMethods = {
     async venvpath(body) {
@@ -158,11 +158,10 @@ const apiMethods = {
         return await resultAssigning(body?.python_code, body?.result, body?.messages_, body?.history, true);
     },
     async errorprompthandle(body) {
-        return errorPromptHandle(body.request, body.history, body.askforce, body.promptSession);
-        // 92,1: export function errorPromptHandle(request, history, askforce, promptSession) {
+        return await errorPromptHandle(body.request, body.history, body.askforce, body.promptSession);
     },
-    async print(body) {
-        print(body.key, JSON.stringify(body.data, undefined, 3));
+    async strout(body) {
+        await strout(body.key, JSON.stringify(body.data, undefined, 3));
         return body
     },
     async neededpackages(body) {
@@ -182,8 +181,6 @@ const apiMethods = {
         return await shell_exec(importcode.code, false, true, true);
     },
     async shell_exec(body) {
-        // node index.js -a shell_exec '{"code":"cHJpbnQoMTIzKQ==", "b64":true}'
-        // node index.js -a shell_exec '{"code":"print(123)", "b64":false}'
         let code = body?.code;
         let b64 = body?.b64;
         if (!(code)) return;
@@ -196,7 +193,7 @@ const apiMethods = {
         // if (!body?.messages_) return;
         // if (!body?.history) return;
         // if (!body?.prompt) return;
-        if (isElectron()) print('assignnewprompt', body);
+        if (isElectron()) await strout('assignnewprompt', body);
         return await assignNewPrompt(body?.request, body?.history, body?.promptSession, body?.python_code, true);
     },
     async aireq(body) {
@@ -208,7 +205,7 @@ const apiMethods = {
         if (!body?.history) return;
         if (!body?.prompt) return;
         setContinousNetworkTryCount(0);
-        return await mainApp({ prompt: body.prompt }, true, body.history, body.messages_, body.askforce, body.summary, !!body.first);
+        return await mainApp({ prompt: body.prompt }, true, body.history, body.messages_, body.askforce, body.summary, !!body.first, body.__taskId);
     },
     async createVENV(body) {
         // node index.js -a createVENV
@@ -268,7 +265,7 @@ if (!isElectron()) {
                         content.push(chalk.hex('#dddddd')(chalk.yellowBright.bold(`Version ${latestVersion} update is now available.`)));
                         content.push(chalk.hex('#dddddd')('You can update by ' + chalk.yellowBright.bold(isWindows() ? `npm install aiexe -g` : `sudo npm install aiexe -g`)));
                     }
-                    print(chalk.bgMagenta(boxen(content.join('\n'), {
+                    console.log(chalk.bgMagenta(boxen(content.join('\n'), {
                         padding: 1,
                         margin: 0,
                         backgroundColor: 'magenta',
@@ -300,8 +297,8 @@ if (!isElectron()) {
                 singleton.options = options;
                 if (singleton?.options?.debug === 'ollama_server_test') {
                     let list = await turnOnOllamaAndGetModelList();
-                    singleton.debug({ list }, 'ollama_server_test');
-                    singleton.debug({ listData: JSON.stringify(list.data) }, 'ollama_server_test');
+                    await singleton.debug({ list }, 'ollama_server_test');
+                    await singleton.debug({ listData: JSON.stringify(list.data) }, 'ollama_server_test');
                     return;
                 }
                 if (singleton?.options?.debug === 'python_path_test_for_windows') {
@@ -452,7 +449,7 @@ if (!isElectron()) {
                                         let sentence = result;
                                         if (sentence) sentence = sentence.trim();
                                         if (!sentence) throw null;
-                                        print(sentence);
+                                        await strout(sentence);
                                     }
                                     break;
                                 } catch (e) {
@@ -494,7 +491,7 @@ if (!isElectron()) {
                 if (!(options?.api)) {
                     try {
                         await installProcess();
-                        print('')
+                        await strout('')
                         const request = prompt ? prompt : await ask_prompt_text(`What can I do for you?.`);
                         await mainApp({ prompt: request });
                     } catch (errorInfo) { printError(errorInfo); }
@@ -507,7 +504,7 @@ if (!isElectron()) {
                         let response = await apiMethods[apiName](body);
                         resp.response = response;
                     }
-                    print(JSON.stringify(resp, undefined, 3));
+                    await strout(JSON.stringify(resp, undefined, 3));
                 }
             });
         program.parse(process.argv);
@@ -566,18 +563,18 @@ if (!isElectron()) {
         }
     });
 
-    let abortQueue = {};
     ipcMain.on('request', async (event, arg) => {
+        try { arg.arg.__taskId = arg.taskId; } catch { }
         const result = await apiMethods[arg.mode](arg.arg)
-        if (abortQueue[arg.taskId]) {
-            delete abortQueue[arg.taskId];
+        if (singleton.abortQueue[arg.taskId]) {
+            if (false) delete singleton.abortQueue[arg.taskId];
             event.reply('response', { arg: null, abortedByRenderer: true, taskId: arg.taskId });
         } else {
             event.reply('response', { arg: result, taskId: arg.taskId });
         }
     });
     ipcMain.on('aborting', async (event, arg) => {
-        abortQueue[arg.taskId] = true;
+        singleton.abortQueue[arg.taskId] = true;
         // arg.taskIds.forEach(taskId => {
         // });
         event.reply('aborting_queued', arg);

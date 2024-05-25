@@ -6,8 +6,9 @@ import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, 
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable, llamaFamily, devmode } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
-import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print, strout } from './oraManager.js'
 import { resetHistory, addMessages, addHistory, summarize, resultAssigning, defineNewMission, errorPromptHandle, } from './promptManager.js'
+import { isTaskAborted } from './mainLogic.js'
 import promptTemplate from './translationPromptTemplate.js';
 import singleton from './singleton.js';
 import chalk from 'chalk';
@@ -34,44 +35,27 @@ export function getContinousNetworkTryCount() {
     return continousNetworkTryCount;
 }
 
-export async function aiChat(messages, parameters) {
+export async function aiChat(messages, parameters, taskId = null) {
     const USE_LLM = await getVarVal('USE_LLM');
-    if (singleton?.options?.debug === 'messages_payloads') {//isElectron()
+    if (singleton?.options?.debug === 'messages_payloads' || devmode) {//isElectron()
         const venv_path = await getPythonVenvPath();
         if (venv_path) {
             const logfile = `${venv_path}/messages_payloads.${getCurrentDateTime()}.json`;
             await fsPromises.appendFile(logfile, JSON.stringify(messages, undefined, 3));
         }
     }
-    // print(messages);
     messages.forEach(talk => delete talk.token_size);
-    // print(messages);
-    if (USE_LLM === 'openai') return await openaiChat(messages, parameters);
-    if (USE_LLM === 'gemini') return await geminiChat(messages, parameters);
-    if (USE_LLM === 'anthropic') return await anthropicChat(messages, parameters);
-    if (USE_LLM === 'ollama') return await ollamaChat(messages, parameters);
-    if (USE_LLM === 'groq') return await groqChat(messages, parameters);
+    if (USE_LLM === 'openai') return await openaiChat(messages, parameters, taskId);
+    if (USE_LLM === 'gemini') return await geminiChat(messages, parameters, taskId);
+    if (USE_LLM === 'anthropic') return await anthropicChat(messages, parameters, taskId);
+    if (USE_LLM === 'ollama') return await ollamaChat(messages, parameters, taskId);
+    if (USE_LLM === 'groq') return await groqChat(messages, parameters, taskId);
 
-    // let failCount = 10;
-    // while (failCount > 0) {
-    //     try {
-    //         if (USE_LLM === 'openai') return await openaiChat(messages, parameters);
-    //         if (USE_LLM === 'gemini') return await geminiChat(messages, parameters);
-    //         if (USE_LLM === 'anthropic') return await anthropicChat(messages, parameters);
-    //         if (USE_LLM === 'ollama') return await ollamaChat(messages, parameters);
-    //         if (USE_LLM === 'groq') return await groqChat(messages, parameters);
-    //     } catch (e) {
-    //         if (!isContextWindowExceeded(e?.response?.data?.error?.message)) throw e;
-    //         else 1
-    //     }
-    //     failCount--;
-    // }
-    // return '';
 }
-export async function geminiChat(messages, parameters = { temperature: 0 }) {
+export async function geminiChat(messages, parameters = { temperature: 0 }, taskId) {
     const debugMode = false;
     while (true) {
-        let tempMessageForIndicator = oraBackupAndStopCurrent();
+        let tempMessageForIndicator = await oraBackupAndStopCurrent();
         let indicator = ora((`Requesting ${chalk.bold('gemini-pro')}`)).start()
         try {
             let python_code;
@@ -113,13 +97,13 @@ export async function geminiChat(messages, parameters = { temperature: 0 }) {
                 }
             }
             indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold('gemini-pro')} succeeded`));
-            oraStart(tempMessageForIndicator);
+            await oraStart(tempMessageForIndicator);
             return python_code;
         } catch (e) {
             printError(e);
             await errNotifier(`Requesting ${('gemini-pro')} failed`);
             indicator.fail(chalk.red(`Requesting ${chalk.bold('gemini-pro')} failed`));
-            oraStart(tempMessageForIndicator);
+            await oraStart(tempMessageForIndicator);
 
             if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -131,10 +115,10 @@ export async function geminiChat(messages, parameters = { temperature: 0 }) {
         }
     }
 }
-export async function anthropicChat(messages, parameters = { temperature: 0 }) {
+export async function anthropicChat(messages, parameters = { temperature: 0 }, taskId) {
     const ANTHROPIC_MODEL = await getVarVal('ANTHROPIC_MODEL');
     while (true) {
-        let tempMessageForIndicator = oraBackupAndStopCurrent();
+        let tempMessageForIndicator = await oraBackupAndStopCurrent();
         let indicator = ora((`Requesting ${chalk.bold(ANTHROPIC_MODEL)}`)).start()
         try {
             let clonedMessage = JSON.parse(JSON.stringify(messages));
@@ -155,13 +139,13 @@ export async function anthropicChat(messages, parameters = { temperature: 0 }) {
             });
             let resd = response.data.content[0].text;
             indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(ANTHROPIC_MODEL)} succeeded`));
-            oraStart(tempMessageForIndicator);
+            await oraStart(tempMessageForIndicator);
             return resd;
         } catch (e) {
             printError(e);
             await errNotifier(`Requesting ${(ANTHROPIC_MODEL)} failed`);
             indicator.fail(chalk.red(`Requesting ${chalk.bold(ANTHROPIC_MODEL)} failed`));
-            oraStart(tempMessageForIndicator);
+            await oraStart(tempMessageForIndicator);
 
             if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -174,33 +158,49 @@ export async function anthropicChat(messages, parameters = { temperature: 0 }) {
 }
 
 
-async function waitTimeFor(timeterm_ms) {
+async function waitTimeFor(timeterm_ms, taskId = null) {
     let recentReq = new Date();
     let secondpre;
     while (true) {
+        if (isTaskAborted(taskId)) return;
         if (new Date() - recentReq > timeterm_ms) break;
         let leftsec = (Math.round((timeterm_ms - (new Date() - recentReq)) / 1000));
         if (leftsec !== secondpre) {
-            oraStart(`${leftsec} seconds left for next request`);
+            await oraStart(`${leftsec} seconds left for next request`);
             secondpre = leftsec;
         }
         await new Promise(resolve => setTimeout(resolve, 100));
     }
-    oraStop();
+    await oraStop();
 }
 let firstGroqReg = true;
-export async function groqChat(messages, parameters = { temperature: 0 }) {
+export async function groqChat(messages, parameters = { temperature: 0 }, taskId) {
     let completion;
     const GROQ_MODEL = await getVarVal('GROQ_MODEL');
     const GROQ_API_KEY = await getVarVal('GROQ_API_KEY');
     let alreadWaited = false;
+    function checkAbortion() {
+        if (isTaskAborted(taskId)) {
+            throw {
+                response: {
+                    data: {
+                        error: {
+                            message: 'aborted by renderer',
+                            code: -1
+                        }
+                    }
+                }
+            }
+        }
+    }
     while (true) {
         let timeterm = firstGroqReg ? 0 : 3000 * 1;
         firstGroqReg = false;
-        let tempMessageForIndicator = oraBackupAndStopCurrent();
-        if (!alreadWaited) await waitTimeFor(timeterm);
+        let tempMessageForIndicator = await oraBackupAndStopCurrent();
+        if (!alreadWaited) await waitTimeFor(timeterm, taskId);
+        checkAbortion();
         alreadWaited = false;
-        oraStop();
+        await oraStop();
         let indicator = ora((`Requesting ${chalk.bold(GROQ_MODEL)}`)).start()
         try {
             completion = await axiosPostWrap('https://api.groq.com/openai/v1/chat/completions', { ...parameters, model: GROQ_MODEL, messages, }, {
@@ -208,13 +208,13 @@ export async function groqChat(messages, parameters = { temperature: 0 }) {
             });
             let python_code = completion.data.choices[0].message.content;
             indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(GROQ_MODEL)} succeeded`));
-            oraStart(tempMessageForIndicator);
+            await oraStart(tempMessageForIndicator);
             return python_code;
         } catch (e) {
             printError(e);
             await errNotifier(`Requesting ${(GROQ_MODEL)} failed`);
             indicator.fail(chalk.red(`Requesting ${chalk.bold(GROQ_MODEL)} failed`));
-            oraStart(tempMessageForIndicator);
+            await oraStart(tempMessageForIndicator);
             if (e?.response?.data?.error?.code === 'rate_limit_exceeded') {
 
                 function extractTime(str) {
@@ -234,10 +234,10 @@ export async function groqChat(messages, parameters = { temperature: 0 }) {
                     return totalMilliseconds;
                 }
                 let waitTime = Math.ceil((extractTime(e.response.data.error.message) / 1000) * 1.1)
-                // print(chalk.red(`You made many requests quickly, which overwhelmed the AI.\nIt will take ${waitTime} seconds break and try again.`));
-                await errNotifier(e.response.data.error.message);
-                print(chalk.red(e.response.data.error.message));
-                await waitTimeFor(waitTime * 1000);
+                if (isElectron()) await errNotifier(e.response.data.error.message);
+                if (!isElectron()) await strout(chalk.red(e.response.data.error.message));
+                await waitTimeFor(waitTime * 1000, taskId);
+                checkAbortion();
                 alreadWaited = true;
                 continue;
             }
@@ -250,11 +250,26 @@ export async function groqChat(messages, parameters = { temperature: 0 }) {
         }
     }
 }
-export async function openaiChat(messages, parameters = { temperature: 0 }) {
+export async function openaiChat(messages, parameters = { temperature: 0 }, taskId) {
     let completion;
     const OPENAI_MODEL = await getVarVal('OPENAI_MODEL');
+    function checkAbortion() {
+        if (isTaskAborted(taskId)) {
+            throw {
+                response: {
+                    data: {
+                        error: {
+                            message: 'aborted by renderer',
+                            code: -1
+                        }
+                    }
+                }
+            }
+        }
+    }
     while (true) {
-        let tempMessageForIndicator = oraBackupAndStopCurrent();
+        checkAbortion();
+        let tempMessageForIndicator = await oraBackupAndStopCurrent();
         let indicator = ora((`Requesting ${chalk.bold(OPENAI_MODEL)}`)).start()
         try {
             completion = await axiosPostWrap('https://api.openai.com/v1/chat/completions', { ...parameters, model: OPENAI_MODEL, messages }, {
@@ -262,13 +277,13 @@ export async function openaiChat(messages, parameters = { temperature: 0 }) {
             });
             let python_code = completion.data.choices[0].message.content;
             indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(OPENAI_MODEL)} succeeded`));
-            oraStart(tempMessageForIndicator);
+            await oraStart(tempMessageForIndicator);
             return python_code;
         } catch (e) {
             printError(e);
             await errNotifier(`Requesting ${(OPENAI_MODEL)} failed`);
             indicator.fail(chalk.red(`Requesting ${chalk.bold(OPENAI_MODEL)} failed`));
-            oraStart(tempMessageForIndicator);
+            await oraStart(tempMessageForIndicator);
 
             let errorMessage = (e?.response?.data?.error?.message || '').trim();
             if (errorMessage.startsWith('Rate limit reached for') && errorMessage.indexOf('Please try again in ') > -1) {
@@ -293,9 +308,10 @@ export async function openaiChat(messages, parameters = { temperature: 0 }) {
                 try {
                     waitTime = Math.ceil((extractTime(errorMessage) / 1000) * 1.1)
                     if (waitTime === null) throw null;
-                    await errNotifier(errorMessage);
-                    print(chalk.red(errorMessage));
-                    await waitTimeFor(waitTime * 1000);
+                    if (isElectron()) await errNotifier(errorMessage);
+                    if (!isElectron()) await strout(chalk.red(errorMessage));
+                    await waitTimeFor(waitTime * 1000, taskId);
+                    checkAbortion();
                     continue;
                 } catch (e) {
                     printError(e);
@@ -312,7 +328,7 @@ export async function openaiChat(messages, parameters = { temperature: 0 }) {
         }
     }
 }
-export async function ollamaChat(messages, parameters = { temperature: 0 }) {
+export async function ollamaChat(messages, parameters = { temperature: 0 }, taskId) {
     let airesponse;
     let response;
     let options = parameters;
@@ -320,18 +336,18 @@ export async function ollamaChat(messages, parameters = { temperature: 0 }) {
     const OLLAMA_MODEL = await getVarVal('OLLAMA_MODEL');
     if (OLLAMA_PROXY_SERVER) {
         while (true) {
-            let tempMessageForIndicator = oraBackupAndStopCurrent();
+            let tempMessageForIndicator = await oraBackupAndStopCurrent();
             let indicator = ora((`Requesting ${chalk.bold(OLLAMA_MODEL)}`)).start()
             try {
                 airesponse = await axiosPostWrap(OLLAMA_PROXY_SERVER, { proxybody: { model: OLLAMA_MODEL, stream: false, options, messages } });
                 indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(OLLAMA_MODEL)} succeeded`));
-                oraStart(tempMessageForIndicator);
+                await oraStart(tempMessageForIndicator);
                 break;
             } catch (e) {
                 printError(e);
                 await errNotifier(`Requesting ${(OLLAMA_MODEL)} failed`);
                 indicator.fail(chalk.red(`Requesting ${chalk.bold(OLLAMA_MODEL)} failed`));
-                oraStart(tempMessageForIndicator);
+                await oraStart(tempMessageForIndicator);
 
                 if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -345,18 +361,18 @@ export async function ollamaChat(messages, parameters = { temperature: 0 }) {
         let count = 10;
         while (count >= 0) {
             count--;
-            let tempMessageForIndicator = oraBackupAndStopCurrent();
+            let tempMessageForIndicator = await oraBackupAndStopCurrent();
             let indicator = ora((`Requesting ${chalk.bold(OLLAMA_MODEL)}`)).start()
             try {
                 airesponse = await axiosPostWrap('http://127.0.0.1:11434/api/chat', { model: OLLAMA_MODEL, stream: false, options, messages });
                 indicator.succeed(chalk.greenBright(`Requesting ${chalk.bold(OLLAMA_MODEL)} succeeded`));
-                oraStart(tempMessageForIndicator);
+                await oraStart(tempMessageForIndicator);
                 break;
             } catch (e) {
                 printError(e);
                 await errNotifier(`Requesting ${(OLLAMA_MODEL)} failed`);
                 indicator.fail(chalk.red(`Requesting ${chalk.bold(OLLAMA_MODEL)} failed`));
-                oraStart(tempMessageForIndicator);
+                await oraStart(tempMessageForIndicator);
                 if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 } else if (e.code === 'ECONNREFUSED') {
@@ -379,7 +395,7 @@ export async function turnOnOllamaAndGetModelList() {
         try {
             return await axios.get('http://127.0.0.1:11434/api/tags');
         } catch (e) {
-            singleton.debug({ error: e }, 'ollama_server_test');
+            await singleton.debug({ error: e }, 'ollama_server_test');
             printError(e);
             if (e.code === 'ECONNRESET' || e.code === 'EPIPE') {
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -557,7 +573,7 @@ function isContextWindowExceeded(errmsg) {
     if (!errmsg) return false;
     return errmsg.indexOf('Please reduce the length of the messages or completion') > -1;
 }
-export async function code_generator(summary, messages_ = [], history = [], askforce, promptSession, contextWindowRatio = 1) {
+export async function code_generator(summary, messages_ = [], history = [], askforce, promptSession, contextWindowRatio = 1, taskId) {
     const debugMode = false;
     const USE_LLM = await getVarVal('USE_LLM');
     let python_code = '';
@@ -566,8 +582,14 @@ export async function code_generator(summary, messages_ = [], history = [], askf
     let moduleInstall = true;
     try {
         while (true) {
+            if (isTaskAborted(taskId)) {
+                abort = true;
+                abortReason = 'aborted by renderer';
+                break;
+            }
+            // if()
             let messages = await combindMessageHistory(summary, messages_, history, askforce, contextWindowRatio);
-            oraStop();
+            await oraStop();
             // re-generate                      | 
             // run_code_causes_error            | 히스토리의 마지막은 user
             // nothing_responsed                | 히스토리의 마지막은 user
@@ -580,7 +602,6 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 nothing_responsed 이전 요청내용
             */
             const reGenerateMode = askforce === 're-generate';
-            if (false) print('reGenerateMode', reGenerateMode, askforce);
             if (askforce === 'responsed_code_is_invalid_syntax') {
                 moduleInstall = true;
                 let request = isElectron() ? promptSession.prompt : (await ask_prompt_text(`What can I do for you?`)).trim(); // 이 물음에서 진행했을때 `Nothing responsed`의 상황이 만들어진다.
@@ -609,8 +630,8 @@ export async function code_generator(summary, messages_ = [], history = [], askf
             }
             else if (askforce === 'run_code_causes_error' || askforce === 'nothing_responsed') {
                 moduleInstall = false;
-                print('Would you like to request the creation of a revised code?')
-                print('Please select an option:')
+                await strout('Would you like to request the creation of a revised code?')
+                await strout('Please select an option:')
                 setContinousNetworkTryCount(0);
                 let mode = ['Create of a revised code', 'Modify Prompt', 'Quit'];
                 let index = isElectron() ? 2 : await promptChoices(mode, `Enter your choice`, { cancel: false });
@@ -627,12 +648,12 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                         askingMent = 'What could I do for you?';
                     }
                     try {
-                        print(`Previous prompt: ${chalk.bold(promptSession.prompt)}`);
+                        await strout(`Previous prompt: ${chalk.bold(promptSession.prompt)}`);
                         let request = (await ask_prompt_text(askingMent)).trim();
-                        errorPromptHandle(request, history, askforce, promptSession);
+                        await errorPromptHandle(request, history, askforce, promptSession);
                     } catch (e) {
                         printError(e);
-                        print(e);
+                        await strout(e);
                     }
                     askforce = '';
                     continue;
@@ -642,29 +663,29 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                     abortReason = 'chosen Quit';
                     break;
                 }
-                print('')
+                await strout('')
             }
-            oraStart(`Generating code with ${chalk.bold(await getModelName())}`);
-            if (disableOra) oraStop();
+            await oraStart(`Generating code with ${chalk.bold(await getModelName())}`);
+            if (disableOra) await oraStop();
             const parameters = { temperature: reGenerateMode ? 0.7 : 0 };
             if (USE_LLM === 'ollama') {
-                python_code = await aiChat(messages, parameters);
+                python_code = await aiChat(messages, parameters, taskId);
             } else if (USE_LLM === 'openai') {
                 if (debugMode) debugMode.leave('AIREQ', messages);
                 try {
-                    python_code = await aiChat(messages, parameters);
+                    python_code = await aiChat(messages, parameters, taskId);
                 } catch (e) {
                     printError(e);
                     const message = e?.response?.data?.error?.message;
                     if (isContextWindowExceeded(message)) {
                         contextWindowRatio -= 0.1;
                         if (contextWindowRatio > 0.1) {
-                            oraStop();
+                            await oraStop();
                             continue;
                         }
                     }
-                    if (isElectron()) { abort = true; abortReason = message; break; }
                     await oraFail(chalk.redBright(message));
+                    if (isElectron()) { abort = true; abortReason = message; break; }
                     if (e.response.data.error.code === 'invalid_api_key') {
                         await disableVariable('OPENAI_API_KEY');
                         await installProcess(false);
@@ -678,19 +699,19 @@ export async function code_generator(summary, messages_ = [], history = [], askf
             } else if (USE_LLM === 'groq') {
                 if (debugMode) debugMode.leave('AIREQ', messages);
                 try {
-                    python_code = await aiChat(messages, parameters);
+                    python_code = await aiChat(messages, parameters, taskId);
                 } catch (e) {
                     printError(e);
                     const message = e?.response?.data?.error?.message;
                     if (isContextWindowExceeded(message)) {
                         contextWindowRatio -= 0.1;
                         if (contextWindowRatio > 0.1) {
-                            oraStop();
+                            await oraStop();
                             continue;
                         }
                     }
-                    if (isElectron()) { abort = true; abortReason = message; break; }
                     await oraFail(chalk.redBright(message));
+                    if (isElectron()) { abort = true; abortReason = message; break; }
                     if (e.response.data.error.code === 'invalid_api_key') {
                         await disableVariable('GROQ_API_KEY');
                         await installProcess(false);
@@ -703,11 +724,11 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 }
             } else if (USE_LLM === 'anthropic') {
                 try {
-                    python_code = await aiChat(messages, parameters)
+                    python_code = await aiChat(messages, parameters, taskId)
                 } catch (e) {
                     printError(e);
+                    await oraFail(chalk.redBright(e?.response?.data?.error?.message || ''));
                     if (isElectron()) { abort = true; abortReason = e?.response?.data?.error?.message; break; }
-                    await oraFail(chalk.redBright(e.response.data.error.message));
                     // e.response.data.error 컨텍스트 윈도우를 넘치는 경우에 대한 처리 필요.
                     if (e.response.data.error.type === 'authentication_error') {
                         await disableVariable('ANTHROPIC_API_KEY');
@@ -722,11 +743,11 @@ export async function code_generator(summary, messages_ = [], history = [], askf
 
             } else if (USE_LLM === 'gemini') {
                 try {
-                    python_code = await aiChat(messages, parameters);
+                    python_code = await aiChat(messages, parameters, taskId);
                 } catch (e) {
                     printError(e);
+                    await oraFail(chalk.redBright(e?.response?.data?.error?.message || ''));
                     if (isElectron()) { abort = true; abortReason = e?.response?.data?.error?.message; break; }
-                    await oraFail(chalk.redBright(e.response.data.error.message));
                     if (e.response.data.error.message.indexOf('API key not valid') > -1) {
                         await disableVariable('GOOGLE_API_KEY');
                         await installProcess(false);
@@ -758,9 +779,9 @@ export async function code_generator(summary, messages_ = [], history = [], askf
     if (correct_code.err) err = correct_code.err;
     let generateSuccess = !err && !!python_code;
     if (generateSuccess) {
-        oraSucceed(chalk.greenBright(`Generation succeeded with ${chalk.bold(await getModelName())}`))
+        await oraSucceed(chalk.greenBright(`Generation succeeded with ${chalk.bold(await getModelName())}`))
     }
-    oraStop();
+    await oraStop();
     const rst = { raw, err, correct_code: !!python_code, python_code, abort, abortReason, usedModel: await getModelName() };
     return rst;
 }

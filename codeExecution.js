@@ -7,7 +7,7 @@ import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
 import { resetHistory, addMessages, addHistory, summarize, resultAssigning, defineNewMission, assignNewPrompt, } from './promptManager.js'
-import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print, strout } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
 import pyModuleTable from './pyModuleTable.js';
 import chalk from 'chalk';
@@ -28,22 +28,22 @@ import { spawn } from 'child_process';
 import os from 'os';
 import singleton from './singleton.js'
 
-export function procPlainText(messages_, history, result2, resForOpi, apimode = false) {
+export async function procPlainText(messages_, history, result2, resForOpi, apimode = false) {
     let askforce;
     if (result2.raw) {
         history.forEach(item => addMessages(messages_, item));
         addMessages(messages_, { role: "assistant", content: result2.raw.trim() });
         resetHistory(history);
-        if (!apimode) print(chalk.hex('#4b4b66').bold('─'.repeat(measureColumns(0))));
-        if (!apimode) print(chalk.hex('#a8a6f3')(chalk.bold(`AI's Response`) + ':'));
+        if (!apimode) await strout(chalk.hex('#4b4b66').bold('─'.repeat(measureColumns(0))));
+        if (!apimode) await strout(chalk.hex('#a8a6f3')(chalk.bold(`AI's Response`) + ':'));
         let resultd = result2.raw.trim();
-        if (!apimode) print(chalk.hex('#a8a6f3')(resultd))
-        if (!apimode) print(chalk.hex('#4b4b66').bold('─'.repeat(measureColumns(0))));
+        if (!apimode) await strout(chalk.hex('#a8a6f3')(resultd))
+        if (!apimode) await strout(chalk.hex('#4b4b66').bold('─'.repeat(measureColumns(0))));
         askforce = 'responsed_code_is_invalid_syntax';
         if (resForOpi) askforce = 'responsed_opinion';
         // askforce = 'responsed_opinion';
     } else {
-        if (!apimode) print(chalk.red('Nothing responsed'));
+        if (!apimode) await strout(chalk.red('Nothing responsed'));
         askforce = 'nothing_responsed';
     }
     return { askforce }
@@ -139,7 +139,6 @@ export async function moduleValidator(code_file_path) {
     print(json.dumps(non_existent_modules))
     `;
     let resutl = await shell_exec(python_code, false, true, true);
-    // print(resutl);
     try {
         return JSON.parse(resutl.stdout);
     } catch (e) { printError(e); }
@@ -172,15 +171,15 @@ export async function shell_exec(python_code, only_save = false, silent = false,
             `${python_code}`
         ].join('\n'));
         if (only_save) return resolve(scriptPath);
-        if (!orasilent) oraStart(`Executing code`);
+        if (!orasilent) await oraStart(`Executing code`);
         const python_interpreter_ = await getPythonPipPath();
         if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
         const pythonCmd = `'${python_interpreter_}' -u '${scriptPath}'`;
         const arg = await makeVEnvCmd(pythonCmd, true);
         const env = Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' });
         if (singleton?.options?.debug === 'shellexe') {
-            singleton.debug(arg, 'shellexe');
-            print(chalk.blueBright(python_code));
+            await singleton.debug(arg, 'shellexe');
+            await strout(chalk.blueBright(python_code));
         }
         // ㅣㄷㅅ
         let windowsHide;
@@ -201,7 +200,7 @@ export async function shell_exec(python_code, only_save = false, silent = false,
 export async function execInVenv(command, app) {
     await createVENV();
     return new Promise(async (resolve, reject) => {
-        oraStart(`Executing code`);
+        await oraStart(`Executing code`);
         const python_interpreter_ = await getPythonPipPath(app.toLowerCase());
         if (!python_interpreter_) { await oraFail(chalk.red('Python Interpreter Not Found')); reject(new Error('Python Interpreter Not Found')); return; }
         const pythonCmd = `'${python_interpreter_}' ${addslashes(command)}`;
@@ -261,8 +260,8 @@ export async function getPowerShellPath() {
         if (!powershellPath && await is_file(hardpath)) powershellPath = hardpath;
         if (isBadStr(powershellPath)) powershellPath = null;
         if (!powershellPath) {
-            await errNotifier(`Window PowerShell not found`);
-            print(chalk.red(`Window PowerShell not found`));
+            if (isElectron()) await errNotifier(`Window PowerShell not found`);
+            if (!isElectron()) await strout(chalk.red(`Window PowerShell not found`));
             process.exit(1);
             return;
         }

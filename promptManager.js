@@ -6,7 +6,7 @@ import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, 
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination, installModules } from './envLoaders.js'
-import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print, strout } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
 import singleton from './singleton.js';
 import chalk from 'chalk';
@@ -51,8 +51,8 @@ export async function summarize(messages_, summary, limit, remain, apimode = fal
     }
     try {
         if (messages_.length >= limit) {
-            if (!apimode) oraStart(`Summarizing the conversation so far`);
-            if (!apimode) if (disableOra) oraStop();
+            if (!apimode) await oraStart(`Summarizing the conversation so far`);
+            if (!apimode) if (disableOra) await oraStop();
             const aoifj = [];
             aoifj.push({
                 role: 'system',
@@ -76,30 +76,29 @@ export async function summarize(messages_, summary, limit, remain, apimode = fal
                 ].join('\n').trim()
             });
             const sum = await aiChat(aoifj);
-            if (!apimode) oraSucceed(`Summarizing successed like below`);
-            if (!apimode) print(chalk.gray(sum + '\n'));
+            if (!apimode) await oraSucceed(`Summarizing successed like below`);
+            if (!apimode) await strout(chalk.gray(sum + '\n'));
             summary = sum;
             while (messages_.length > remain * 4) messages_.splice(0, 1);
         }
     } catch (e) {
         printError(e);
-        if (!apimode) oraStop();
+        if (!apimode) await oraStop();
     }
-    if (!apimode) oraStop();
+    if (!apimode) await oraStop();
     return summary;
 }
-export function errorPromptHandle(request, history, askforce, promptSession) {
+export async function errorPromptHandle(request, history, askforce, promptSession) {
     if (request) {
         if (askforce === 'run_code_causes_error') {
             history.at(-1).content += `\n\nDon't say anything`;
             addHistory(history, { role: "assistant", content: '' });
             defineNewMission(promptSession, history, request, true); // dont remove
-            // if (!isElectron()) false && print(JSON.stringify(history, undefined, 3));
         }
         if (askforce === 'nothing_responsed') defineNewMission(promptSession, history, request);
-        if (!isElectron()) print('The request has been changed.\nRequesting again with the updated request.');
+        if (!isElectron()) await strout('The request has been changed.\nRequesting again with the updated request.');
     } else {
-        if (!isElectron()) print('There are no changes.\nRequesting again with the original request.');
+        if (!isElectron()) await strout('There are no changes.\nRequesting again with the original request.');
     }
     return { request, history, askforce, promptSession };
 }
@@ -107,7 +106,7 @@ export async function resultAssigning(python_code, result, messages_, history, a
     let askforce;
     if (result?.code === 0) {
         // 코드 수행 성공.
-        if (!apimode) print(chalk.greenBright.bold(`✔ The code ran successfully`))
+        if (!apimode) await strout(chalk.greenBright.bold(`✔ The code ran successfully`))
         if (false) addMessages(messages_, history[0]);
         let clonedHistory = JSON.parse(JSON.stringify(history));
         clonedHistory = clonedHistory.filter(d => d.role === 'user');
@@ -144,7 +143,7 @@ export async function resultAssigning(python_code, result, messages_, history, a
         });
         askforce = 'ask_opinion';
     } else {
-        if (!apimode) print(chalk.redBright.bold(`✔ The code failed to run because of an error`))
+        if (!apimode) await strout(chalk.redBright.bold(`✔ The code failed to run because of an error`))
         addHistory(history, { role: 'assistant', content: "```\n" + python_code + "\n```" });
         addHistory(history, { role: 'user', content: resultTemplate(result) });
         askforce = 'run_code_causes_error';
@@ -167,9 +166,9 @@ export async function assignNewPrompt(request, history, promptSession, python_co
     if (request) {
         addHistory(history, { role: "assistant", content: '```\n' + python_code + '\n```' });
         defineNewMission(promptSession, history, request, true);
-        if (!apimode) print('The request has been changed.\nRequesting again with the updated request.');
+        if (!apimode) await strout('The request has been changed.\nRequesting again with the updated request.');
     } else {
-        if (!apimode) print('There are no changes.\nRequesting again with the original request.');
+        if (!apimode) await strout('There are no changes.\nRequesting again with the original request.');
     }
     return { askforce: '', history, promptSession };
 }

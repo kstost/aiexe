@@ -1,6 +1,6 @@
 {
   "name": "aiexe",
-  "version": "1.0.154",
+  "version": "1.0.155",
   "description": "A cutting-edge powerful AI agent",
   "main": "index.js",
   "type": "module",
@@ -49,7 +49,8 @@
     "open": "^10.1.0",
     "ora": "^8.0.1",
     "readline-sync": "^1.4.10",
-    "shelljs": "^0.8.5"
+    "shelljs": "^0.8.5",
+    "strip-ansi": "^7.1.0"
   },
   "devDependencies": {
     "@electron/notarize": "^2.3.2",

@@ -6,7 +6,7 @@ import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal, openEndedPrompt, multipleChoicePrompt } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
-import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print, strout } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
 import singleton from './singleton.js';
 import chalk from 'chalk';
@@ -40,7 +40,7 @@ export async function installModules(promptmessage, packageDescriptions) {
             checked: true
         });
     });
-    if (promptmessage) print(`\n${chalk.bold(promptmessage)}`);
+    if (promptmessage) await strout(`\n${chalk.bold(promptmessage)}`);
     const choosenList = await checkbox({
         message: 'Select modules to install',
         choices: [
@@ -148,14 +148,14 @@ export async function installProcess(greeting = false) {
     else if (use_llm === 'ollama') {
         let ollamaPath = (await which('ollama')).trim();
         if (!ollamaPath) {
-            print('* Ollama is not installed in your system. Ollama is required to use this app');
+            await strout('* Ollama is not installed in your system. Ollama is required to use this app');
             await disableVariable('USE_LLM');
 
             return await installProcess();
         }
         else if (isBadStr(ollamaPath)) {
-            print(`* Ollama found located at "${ollamaPath}"`);
-            print("However, the path should not contain ', \".");
+            await strout(`* Ollama found located at "${ollamaPath}"`);
+            await strout("However, the path should not contain ', \".");
             await disableVariable('USE_LLM');
 
             return await installProcess();
@@ -164,8 +164,8 @@ export async function installProcess(greeting = false) {
             try {
                 let list = await turnOnOllamaAndGetModelList();
                 if (!list) {
-                    print('* Ollama server is not ready');
-                    print(`Ollama command located at ${chalk.bold(ollamaPath)}`)
+                    await strout('* Ollama server is not ready');
+                    await strout(`Ollama command located at ${chalk.bold(ollamaPath)}`)
                     await disableVariable('USE_LLM');
 
                     return await installProcess();
@@ -180,7 +180,7 @@ export async function installProcess(greeting = false) {
                         }
                     } catch (errorInfo) {
                         printError(errorInfo);
-                        print('* You have no model installed in Ollama');
+                        await strout('* You have no model installed in Ollama');
                         await disableVariable('USE_LLM');
 
                         return await installProcess();
@@ -196,18 +196,18 @@ export async function installProcess(greeting = false) {
         modificationMade = true;
     }
     if (greeting && modificationMade) {
-        print(chalk.gray.bold('─'.repeat(measureColumns(0))));
-        print(chalk.greenBright('Configuration has done'));
-        print(`With the ${chalk.white.bold(`aiexe -c`)} command, you can select an AI vendor.`);
-        print(`With the ${chalk.white.bold(`aiexe -m`)} command, you can select models corresponding to the chosen AI vendor.`);
-        print(`The ${chalk.white.bold(`aiexe -r`)} command allows you to reset all settings and the Python virtual environment so you can start from scratch.`);
-        print(chalk.green('Enjoy AIEXE'));
-        print(chalk.gray('$') + ' ' + chalk.yellowBright('aiexe "print hello world"'));
-        print(chalk.gray.bold('─'.repeat(measureColumns(0))));
+        await strout(chalk.gray.bold('─'.repeat(measureColumns(0))));
+        await strout(chalk.greenBright('Configuration has done'));
+        await strout(`With the ${chalk.white.bold(`aiexe -c`)} command, you can select an AI vendor.`);
+        await strout(`With the ${chalk.white.bold(`aiexe -m`)} command, you can select models corresponding to the chosen AI vendor.`);
+        await strout(`The ${chalk.white.bold(`aiexe -r`)} command allows you to reset all settings and the Python virtual environment so you can start from scratch.`);
+        await strout(chalk.green('Enjoy AIEXE'));
+        await strout(chalk.gray('$') + ' ' + chalk.yellowBright('aiexe "print hello world"'));
+        await strout(chalk.gray.bold('─'.repeat(measureColumns(0))));
     }
 }
 export async function realworld_which_python() {
-    singleton.debug({ head: '-'.repeat(10) }, 'realworld_which_python');
+    await singleton.debug({ head: '-'.repeat(10) }, 'realworld_which_python');
     let list = ['python', 'python3'];
 
     if (isWindows()) list = ['python', 'python3', '.python', '.python3'];
@@ -218,9 +218,9 @@ export async function realworld_which_python() {
     const python_detect_result = [];
     for (let i = 0; i < list.length; i++) {
         const name = list[i];
-        singleton.debug({ name }, 'realworld_which_python');
+        await singleton.debug({ name }, 'realworld_which_python');
         const ppath = name[0] === '.' ? name.substring(1, Infinity) : await which(name);
-        singleton.debug({ path: ppath }, 'realworld_which_python');
+        await singleton.debug({ path: ppath }, 'realworld_which_python');
         if (!ppath) continue;
         if (isBadStr(ppath)) throw ppath;
         const str = `${Math.random()}`;
@@ -228,7 +228,7 @@ export async function realworld_which_python() {
         if (isWindows()) rfg = await execAdv(`& '${ppath}' -c \\"print('${str}')\\"`);
         else rfg = await execAdv(`"${ppath}" -c "print('${str}')"`);
         let { stdout } = rfg;
-        singleton.debug({ result: stdout.trim(), source: str, comparison: stdout.trim() === str }, 'realworld_which_python');
+        await singleton.debug({ result: stdout.trim(), source: str, comparison: stdout.trim() === str }, 'realworld_which_python');
         if (stdout.trim() === str) return ppath;
         python_detect_result.push({
             path: ppath,
@@ -272,22 +272,22 @@ export async function getActivatePath() {
     }
 }
 export async function getPythonPipPath(app = 'python', venv = true) {
-    singleton.debug({ head: '-'.repeat(10) }, 'getPythonPipPath');
+    await singleton.debug({ head: '-'.repeat(10) }, 'getPythonPipPath');
     const venv_path = await getVarVal('PYTHON_VENV_PATH');
     async function pythonPath() {
         try { return await realworld_which_python(); } catch (errorInfo) {
-            singleton.debug({ error: errorInfo, inside: true }, 'getPythonPipPath');
+            await singleton.debug({ error: errorInfo, inside: true }, 'getPythonPipPath');
             printError(errorInfo);
         }
     }
     function getValue(result) {
         if (result?.constructor === String) return result;
     }
-    singleton.debug({ venv, app, win32: isWindows() }, 'getPythonPipPath');
-    singleton.debug({ venv_path }, 'getPythonPipPath');
+    await singleton.debug({ venv, app, win32: isWindows() }, 'getPythonPipPath');
+    await singleton.debug({ venv_path }, 'getPythonPipPath');
     if (!venv) {
         const rwp = (await pythonPath());
-        singleton.debug({ rwp }, 'getPythonPipPath');
+        await singleton.debug({ rwp }, 'getPythonPipPath');
         return rwp;
     }
     let foundPath = ''
@@ -314,10 +314,10 @@ export async function getPythonPipPath(app = 'python', venv = true) {
             ]).find(fs.existsSync);
         }
     } catch (errorInfo) {
-        singleton.debug({ error: errorInfo }, 'getPythonPipPath');
+        await singleton.debug({ error: errorInfo }, 'getPythonPipPath');
         printError(errorInfo);
     }
-    singleton.debug({ foundPath }, 'getPythonPipPath');
+    await singleton.debug({ foundPath }, 'getPythonPipPath');
     return foundPath || '';
 }
 
@@ -327,7 +327,7 @@ export async function _getPythonPipPath(app = 'python', venv = true) {
     if (false) _VENVfoundPath = {};
     if (false) _realFoundPath = null;
     if (venv && _VENVfoundPath[app]) return _VENVfoundPath[app];
-    singleton.debug({ head: '-'.repeat(10) }, 'getPythonPipPath');
+    await singleton.debug({ head: '-'.repeat(10) }, 'getPythonPipPath');
     const venv_path = await getVarVal('PYTHON_VENV_PATH');
     async function pythonPath() {
         if (_realFoundPath) return _realFoundPath;
@@ -336,18 +336,18 @@ export async function _getPythonPipPath(app = 'python', venv = true) {
             _realFoundPath = realworldPython;
             return _realFoundPath;
         } catch (errorInfo) {
-            singleton.debug({ error: errorInfo, inside: true }, 'getPythonPipPath');
+            await singleton.debug({ error: errorInfo, inside: true }, 'getPythonPipPath');
             printError(errorInfo);
         }
     }
     function getValue(result) {
         if (result?.constructor === String) return result;
     }
-    singleton.debug({ venv, app, win32: isWindows() }, 'getPythonPipPath');
-    singleton.debug({ venv_path }, 'getPythonPipPath');
+    await singleton.debug({ venv, app, win32: isWindows() }, 'getPythonPipPath');
+    await singleton.debug({ venv_path }, 'getPythonPipPath');
     if (!venv) {
         const rwp = (await pythonPath());
-        singleton.debug({ rwp }, 'getPythonPipPath');
+        await singleton.debug({ rwp }, 'getPythonPipPath');
         return rwp;
     }
     let foundPath = ''
@@ -378,10 +378,10 @@ export async function _getPythonPipPath(app = 'python', venv = true) {
             ]).filter(Boolean).find(fs.existsSync);
         }
     } catch (errorInfo) {
-        singleton.debug({ error: errorInfo }, 'getPythonPipPath');
+        await singleton.debug({ error: errorInfo }, 'getPythonPipPath');
         printError(errorInfo);
     }
-    singleton.debug({ foundPath }, 'getPythonPipPath');
+    await singleton.debug({ foundPath }, 'getPythonPipPath');
     foundPath = foundPath || '';
     if (foundPath) _VENVfoundPath[app] = foundPath;
     return _VENVfoundPath[app];
@@ -418,22 +418,22 @@ export async function checkPythonForTermination(pythoncheck) {
         python_interpreter = await getPythonPipPath('python', false);
     } catch (errorInfo) {
         // rare possibility
-        singleton.debug({ error: errorInfo }, 'checkPythonForTermination');
+        await singleton.debug({ error: errorInfo }, 'checkPythonForTermination');
         printError(errorInfo);
     }
     if (python_interpreter && python_interpreter?.constructor === String && !isBadStr(python_interpreter)) {
         _python_interpreter = python_interpreter;
     }
     else if (python_interpreter && python_interpreter?.constructor === String && isBadStr(python_interpreter)) {
-        print(`* Python interpreter found located at "${python_interpreter}"`);
-        print("However, the path should not contain ', \".");
+        await strout(`* Python interpreter found located at "${python_interpreter}"`);
+        await strout("However, the path should not contain ', \".");
         pythoncheck?.push(`* Python interpreter found located at "${python_interpreter}"`);
         pythoncheck?.push("However, the path should not contain ', \".");
         if (!pythoncheck) process.exit(1)
         return;
     }
     else if (python_interpreter && python_interpreter?.constructor === Array) {
-        print(`* AIEXE couldn't find a proper python interpreter`);
+        await strout(`* AIEXE couldn't find a proper python interpreter`);
         pythoncheck?.push(`* AIEXE couldn't find a proper python interpreter`);
         python_interpreter.forEach(candidate => {
             candidate.path = candidate.path.split('\\').join('/');
@@ -444,27 +444,45 @@ export async function checkPythonForTermination(pythoncheck) {
             const proper_candidate = picked.filter(candidate => !findStr(candidate.path, 'Microsoft/WindowsApps'));
             const placeHolders = picked.filter(candidate => findStr(candidate.path, 'Microsoft/WindowsApps'));
             if (proper_candidate.length) {
-                proper_candidate.forEach(candidate => {
+                for (let i = 0; i < proper_candidate.length; i++) {
+                    const candidate = proper_candidate[i];
                     if (candidate.unicode) {
-                        print(`${candidate.path} found, but it contains unicode characters which may cause issues.`);
-                        print(`This can be resolved by moving the Python interpreter to a path without unicode characters.`);
-                        print(`Simply uninstall Python and reinstall it to a path without unicode characters.`);
-                        print(`You can install the Python interpreter by downloading it from https://python.org`);
-                        print(`For additional inquiries, please contact monogatree@gmail.com`);
+                        await strout(`${candidate.path} found, but it contains unicode characters which may cause issues.`);
+                        await strout(`This can be resolved by moving the Python interpreter to a path without unicode characters.`);
+                        await strout(`Simply uninstall Python and reinstall it to a path without unicode characters.`);
+                        await strout(`You can install the Python interpreter by downloading it from https://python.org`);
+                        await strout(`For additional inquiries, please contact monogatree@gmail.com`);
                         pythoncheck?.push(`${candidate.path} found, but it contains unicode characters which may cause issues.`);
                         pythoncheck?.push(`This can be resolved by moving the Python interpreter to a path without unicode characters.`);
                         pythoncheck?.push(`Simply uninstall Python and reinstall it to a path without unicode characters.`);
                         pythoncheck?.push(`You can install the Python interpreter by downloading it from https://python.org`);
                         pythoncheck?.push(`For additional inquiries, please contact monogatree@gmail.com`);
                     } else {
-                        print(`${candidate.path} found but it couldn't pass the test`);
+                        await strout(`${candidate.path} found but it couldn't pass the test`);
                         pythoncheck?.push(`${candidate.path} found but it couldn't pass the test`);
                     }
-                });
+                }
+                // proper_candidate.forEach(candidate => {
+                //     if (candidate.unicode) {
+                //         await strout(`${candidate.path} found, but it contains unicode characters which may cause issues.`);
+                //         await strout(`This can be resolved by moving the Python interpreter to a path without unicode characters.`);
+                //         await strout(`Simply uninstall Python and reinstall it to a path without unicode characters.`);
+                //         await strout(`You can install the Python interpreter by downloading it from https://python.org`);
+                //         await strout(`For additional inquiries, please contact monogatree@gmail.com`);
+                //         pythoncheck?.push(`${candidate.path} found, but it contains unicode characters which may cause issues.`);
+                //         pythoncheck?.push(`This can be resolved by moving the Python interpreter to a path without unicode characters.`);
+                //         pythoncheck?.push(`Simply uninstall Python and reinstall it to a path without unicode characters.`);
+                //         pythoncheck?.push(`You can install the Python interpreter by downloading it from https://python.org`);
+                //         pythoncheck?.push(`For additional inquiries, please contact monogatree@gmail.com`);
+                //     } else {
+                //         await strout(`${candidate.path} found but it couldn't pass the test`);
+                //         pythoncheck?.push(`${candidate.path} found but it couldn't pass the test`);
+                //     }
+                // });
             } else if (placeHolders.length) {
-                print(`${placeHolders.map(candidate => candidate.path).join(', ')} found, but it is a placeholder path for installing Python from the Microsoft Store.`);
-                print(`You can install the Python interpreter by downloading it from https://python.org`);
-                print(`For additional inquiries, please contact monogatree@gmail.com`);
+                await strout(`${placeHolders.map(candidate => candidate.path).join(', ')} found, but it is a placeholder path for installing Python from the Microsoft Store.`);
+                await strout(`You can install the Python interpreter by downloading it from https://python.org`);
+                await strout(`For additional inquiries, please contact monogatree@gmail.com`);
                 pythoncheck?.push(`${placeHolders.map(candidate => candidate.path).join(', ')} found, but it is a placeholder path for installing Python from the Microsoft Store.`);
                 pythoncheck?.push(`You can install the Python interpreter by downloading it from https://python.org`);
                 pythoncheck?.push(`For additional inquiries, please contact monogatree@gmail.com`);

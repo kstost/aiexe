@@ -6,7 +6,7 @@ import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, errNotifier } from './commons.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination } from './envLoaders.js'
-import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
+import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print, strout } from './oraManager.js'
 import promptTemplate from './translationPromptTemplate.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
@@ -30,14 +30,14 @@ export async function createVENV(silent = false, pythoncheck = null) {
     const venv_path = await getPythonVenvPath();
     if (venv_path) return true;
     const venvCandidate = await venvCandidatePath();
-    if (!silent) oraStart('Creating virtual environment for Python');
-    if (!silent) if (disableOra) oraStop();
+    if (!silent) await oraStart('Creating virtual environment for Python');
+    if (!silent) if (disableOra) await oraStop();
     let res;
     if (isWindows()) res = await execAdv(`& '${pythonPath}' -m venv \\"${venvCandidate}\\"`); //dt
     else res = await execAdv(`"${pythonPath}" -m venv "${venvCandidate}"`)
     if (res.code === 0) {
         await setVarVal('PYTHON_VENV_PATH', venvCandidate);
-        if (!silent) oraSucceed(chalk.greenBright('Creating virtual environment for Python successed'));
+        if (!silent) await oraSucceed(chalk.greenBright('Creating virtual environment for Python successed'));
         return true;
     } else {
         if (!silent) await oraFail(chalk.redBright('Creating VENV fail'));
@@ -48,11 +48,11 @@ export async function createVENV(silent = false, pythoncheck = null) {
 export async function multipleChoicePrompt(key, prompt, options, force = false) {
     await errNotifier('Multiple option selection input request error occurred');
     if (!key) {
-        print(chalk.bold(prompt));
+        await strout(chalk.bold(prompt));
         return options[await promptChoices(options, `Enter your choice`, { cancel: false })];
     }
     if (!force) if (await isKeyInConfig(key)) return;
-    print(chalk.bold(prompt));
+    await strout(chalk.bold(prompt));
     setContinousNetworkTryCount(0);
     let index = await promptChoices(options, `Enter your choice`, { cancel: false });
     await setVarVal(key, options[index].toLowerCase(), force);
