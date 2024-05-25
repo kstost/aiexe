@@ -6,7 +6,7 @@ import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv,
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron, reqRenderer, currentLatestVersionOfGitHub } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
-import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
+import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable, devmode } from './constants.js'
 import { installProcess, realworld_which_python, which, getPythonVenvPath, getActivatePath, getPythonPipPath, venvCandidatePath, checkPythonForTermination, installModules } from './envLoaders.js'
 import { oraSucceed, oraFail, oraStop, oraStart, oraBackupAndStopCurrent, print } from './oraManager.js'
 import { resetHistory, addMessages, addHistory, summarize, resultAssigning, defineNewMission, assignNewPrompt, errorPromptHandle, } from './promptManager.js'
@@ -38,9 +38,17 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.153'; // version
+const VERSION = '1.0.154'; // version
 
 const apiMethods = {
+    async venvpath(body) {
+        return await getPythonVenvPath();
+        // if (venv_path) {
+        //     let statefile = `${venv_path}/${body.filename}`;
+        //     let data = await fsPromises.readFile(statefile);
+        //     return data.toString();
+        // }
+    },
     async getstate(body) {
         const venv_path = await getPythonVenvPath();
         if (venv_path) {
@@ -523,29 +531,25 @@ if (!isElectron()) {
         if (true) win.once('ready-to-show', () => {
             win.maximize(); // 창을 최대화합니다.
             win.show(); // 창을 보여줍니다.
-            // win.webContents.openDevTools(); // 개발자 도구 열기
+            if (devmode) win.webContents.openDevTools(); // 개발자 도구 열기
             // if (process.env.NODE_ENV === 'development') {
             // }
         });
-        globalShortcut.register('CommandOrControl+Shift+I', () => {
-            // 아무 작업도 하지 않습니다.
-        });
-        globalShortcut.register('CommandOrControl+Option+I', () => {
-            // 아무 작업도 하지 않습니다.
-        });
-        globalShortcut.register('F5', () => {
-            // 아무 작업도 하지 않습니다.
-        });
-        globalShortcut.register('CommandOrControl+R', () => {
-            // 아무 작업도 하지 않습니다.
-        });
-
+        if (!devmode) {
+            globalShortcut.register('CommandOrControl+Shift+I', () => {
+                // 아무 작업도 하지 않습니다.
+            });
+            globalShortcut.register('CommandOrControl+Option+I', () => {
+                // 아무 작업도 하지 않습니다.
+            });
+            globalShortcut.register('F5', () => {
+                // 아무 작업도 하지 않습니다.
+            });
+            globalShortcut.register('CommandOrControl+R', () => {
+                // 아무 작업도 하지 않습니다.
+            });
+        }
         singleton.electronWindow = win;
-        // async function reqsAPI() {
-        // }
-
-
-
     }
 
     app.whenReady().then(createWindow);

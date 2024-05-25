@@ -88,6 +88,7 @@ window.addEventListener('load', async () => {
     // let resultAssignnewprompt = await reqAPI('assignnewprompt', { request: text, history: history_, promptSession, python_code: currdata.python_code });
 
     const versioninfo = document.querySelector('#versioninfo');
+    const poweredby = document.querySelector('#poweredby');
 
 
     const inputarea = document.querySelector('.input-container div');
@@ -211,6 +212,27 @@ window.addEventListener('load', async () => {
     let messages_ = [];
     let summary = '';
     let promptSession;
+    async function aiIndicator() {
+        const vendorName = await reqAPI('getconfig', { key: 'USE_LLM' });
+        let modelName = '';
+        if (vendorName === 'openai') modelName = await reqAPI('getconfig', { key: 'OPENAI_MODEL' });//kn = ('OPENAI_MODEL');
+        if (vendorName === 'groq') modelName = await reqAPI('getconfig', { key: 'GROQ_MODEL' });//kn = ('GROQ_MODEL');
+        if (vendorName === 'gemini') modelName = 'gemini-pro';
+        if (vendorName === 'anthropic') modelName = await reqAPI('getconfig', { key: 'ANTHROPIC_MODEL' });//kn = ('ANTHROPIC_MODEL');
+        if (vendorName === 'ollama') modelName = await reqAPI('getconfig', { key: 'OLLAMA_MODEL' });//kn = ('OLLAMA_MODEL');
+        poweredby.style.cursor = 'pointer';
+        poweredby.innerHTML = [
+            `<div style="text-align:center;padding:5px;">`,
+            `<span style="opacity:0.5;font-size:0.8em;">Powered by </span>`,
+            `<span style="font-size:0.8em;">${modelName}</span>`,
+            `</div>`,
+        ].join('');
+        [...poweredby.children].forEach(e => e.addEventListener('click', async e => {
+            await resetAllModel();
+            await resetVendor();
+            await config();
+        }));
+    }
     function seedata() {
 
         // console.log('--------------------------');
@@ -642,28 +664,62 @@ window.addEventListener('load', async () => {
         return askforce;
     }
 
-
+    async function resetVendor() {
+        await reqAPI('disableVariable', { value: 'USE_LLM' });
+    }
+    async function chooseModel() {
+        const USE_LLM = await reqAPI('getconfig', { key: 'USE_LLM' });
+        let kn = modelConfigurationKey(USE_LLM);
+        if (kn) {
+            await reqAPI('disableVariable', { value: kn });
+            // await config();
+        }
+    }
+    async function resetAllModel() {
+        let list = [];
+        list.push('OPENAI_MODEL');
+        list.push('GROQ_MODEL');
+        list.push('ANTHROPIC_MODEL');
+        list.push('OLLAMA_MODEL');
+        for (let i = 0; i < list.length; i++) {
+            await reqAPI('disableVariable', { value: list[i] });
+        }
+    }
+    function modelConfigurationKey(aiVendor) {
+        if (!aiVendor) aiVendor = '';
+        aiVendor = aiVendor.toLowerCase();
+        let kn = '';
+        if (aiVendor === 'openai') kn = ('OPENAI_MODEL');
+        if (aiVendor === 'groq') kn = ('GROQ_MODEL');
+        if (aiVendor === 'gemini') kn = '';
+        if (aiVendor === 'anthropic') kn = ('ANTHROPIC_MODEL');
+        if (aiVendor === 'ollama') kn = ('OLLAMA_MODEL');
+        return kn;
+    }
     // majore
 
     {
         let menu = [
             {
                 name: 'AI 제공사 선택', async trg() {
-                    await reqAPI('disableVariable', { value: 'USE_LLM' });
-                    await config(false);
+                    await resetAllModel();
+                    await resetVendor();
+                    await config();
                 }
             },
             {
                 name: 'AI 모델 선택', async trg() {
-                    let kn = '';
-                    const USE_LLM = await reqAPI('getconfig', { key: 'USE_LLM' });
-                    if (USE_LLM === 'openai') kn = ('OPENAI_MODEL');
-                    if (USE_LLM === 'groq') kn = ('GROQ_MODEL');
-                    if (USE_LLM === 'gemini') kn = 'gemini-pro';
-                    if (USE_LLM === 'anthropic') kn = ('ANTHROPIC_MODEL');
-                    if (USE_LLM === 'ollama') kn = ('OLLAMA_MODEL');
-                    await reqAPI('disableVariable', { value: kn });
-                    await config(true);
+                    await resetAllModel();
+                    await config();
+                }
+            },
+            {
+                name: '모든 설정 초기화', async trg() {
+                    if (confirm('모든 설정을 초기화 하시겠습니까? 대화기록도 모두 제거됩니다.')) {
+                        await reqAPI('resetconfig');
+                        await prepareVENV();
+                        await config();
+                    }
                 }
             },
             {
@@ -820,10 +876,10 @@ window.addEventListener('load', async () => {
         return { loadingContainer, loadingText, spinner };
     }
     async function prepareVENV() {
+        // console.log(await reqAPI('venvpath'));
+        if (await reqAPI('venvpath')) return;
         const { loadingContainer, loadingText, spinner } = initPage();
         let { result, pythoncheck } = await reqAPI('createVENV');
-        console.log(result)
-        console.log(pythoncheck)
         if (result) {
             document.body.removeChild(loadingContainer);
         } else {
@@ -838,21 +894,6 @@ window.addEventListener('load', async () => {
             await new Promise(resolve => { });
         }
     }
-    setTimeout(async () => {
-        // 스타일 추가
-        await prepareVENV();
-        await config();
-        // 컨테이너 생성
-
-        // console.log(use_llm);
-
-        // GSAP 애니메이션 적용
-        // gsap.to(title, { duration: 2, opacity: 1, ease: 'power2.inOut' });
-
-
-
-    }, 100);
-    ;
 
 
 
@@ -865,8 +906,7 @@ window.addEventListener('load', async () => {
 
 
 
-
-    async function config(boot = true) {
+    async function config() {
         let container = document.createElement('div');
         container.style.width = '100%';
         container.style.height = '100%';
@@ -878,6 +918,7 @@ window.addEventListener('load', async () => {
         container.style.justifyContent = 'center';
         container.style.alignItems = 'center';
         container.style.backgroundColor = '#f0f0f0';
+        container.style.opacity = '0';
 
         // 타이틀 생성
         let title = document.createElement('h1');
@@ -899,6 +940,7 @@ window.addEventListener('load', async () => {
             if (!use_llm) {
                 let title = 'Which LLM vendor do you prefer?';
                 let options = ['OpenAI', 'Anthropic', 'Ollama', 'Gemini', 'Groq'];
+                container.style.opacity = '1';
                 const chosen = await selector(title, options, container);
                 await reqAPI('setconfig', { key: 'USE_LLM', value: chosen.toLowerCase() });
             }
@@ -913,10 +955,11 @@ window.addEventListener('load', async () => {
             const use_llm = await reqAPI('getconfig', { key: 'USE_LLM' });
             for (let i = 0; i < apiasking.length; i++) {
                 const { key, title, llmname } = apiasking[i];
-                const value = await reqAPI('getconfig', { key: key });
-                if (boot) if (value) continue;
-                if (use_llm === llmname) {
-                    const chosen = await selector(title, value, container);
+                let apiKeyString = await reqAPI('getconfig', { key: key });
+                if (!apiKeyString) apiKeyString = '';
+                if (!apiKeyString && use_llm === llmname) {
+                    container.style.opacity = '1';
+                    const chosen = await selector(title, apiKeyString, container);
                     await reqAPI('setconfig', { key: key, value: chosen });
                 }
             }
@@ -927,6 +970,7 @@ window.addEventListener('load', async () => {
             if (!OPENAI_MODEL && use_llm === 'openai') {
                 const options = ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
                 let title = 'Which OpenAI model do you want to use for your queries?';
+                container.style.opacity = '1';
                 const chosen = await selector(title, options, container);
                 await reqAPI('setconfig', { key: 'OPENAI_MODEL', value: chosen });
             }
@@ -937,6 +981,7 @@ window.addEventListener('load', async () => {
             if (!ANTHROPIC_MODEL && use_llm === 'anthropic') {
                 const options = ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'];
                 let title = 'Which Anthropic model do you want to use for your queries?';
+                container.style.opacity = '1';
                 const chosen = await selector(title, options, container);
                 await reqAPI('setconfig', { key: 'ANTHROPIC_MODEL', value: chosen });
             }
@@ -947,6 +992,7 @@ window.addEventListener('load', async () => {
             if (!GROQ_MODEL && use_llm === 'groq') {
                 const options = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it'];
                 let title = 'Which GROQ model do you want to use for your queries?';
+                container.style.opacity = '1';
                 const chosen = await selector(title, options, container);
                 await reqAPI('setconfig', { key: 'GROQ_MODEL', value: chosen });
             }
@@ -958,6 +1004,7 @@ window.addEventListener('load', async () => {
             if (!OLLAMA_MODEL && use_llm === 'ollama') {
                 const options = await reqAPI('ollamamodellist');
                 let title = 'Which Ollama model do you want to use for your queries?';
+                container.style.opacity = '1';
                 const chosen = await selector(title, options, container);
                 await reqAPI('setconfig', { key: 'OLLAMA_MODEL', value: chosen });
             }
@@ -972,6 +1019,7 @@ window.addEventListener('load', async () => {
             }
         }
         container.remove();
+        await aiIndicator();
 
     }
 
@@ -1062,6 +1110,9 @@ window.addEventListener('load', async () => {
         })
     }
     await refreshVersionInfo();
+    await aiIndicator();
+    await prepareVENV();
+    await config();
 
 
 

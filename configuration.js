@@ -152,6 +152,14 @@ export async function getRCPath() {
     let rcPath = await innerWork();
     if (!rcPath) rcPath = '';
     if (rcPath && !await is_file(rcPath)) rcPath = '';
+    if (!rcPath) {
+        const pathd = `${os.homedir()}/.aiexe.configuration`;
+        try { fs.mkdirSync(pathd); } catch (errorInfo) { printError(errorInfo); }
+        if (!fs.existsSync(pathd)) return '';
+        const filepath = `${pathd}/configuration`;
+        try { fs.readFileSync(filepath); } catch (errorInfo) { printError(errorInfo); fs.appendFileSync(filepath, ''); }
+        return filepath;
+    }
     return rcPath;
 }
 export async function readRCDaata() {
