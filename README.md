@@ -94,7 +94,7 @@ Before you begin, ensure you have `npm` and Python installed on your system.
 #### macOS GUI Installation
 1. Open Terminal and run the following command:
    ```bash
-   sudo chown -R 501:20 ~/.npm 2>/dev/null; command -v npm >/dev/null 2>&1 && { timestamp=$(date +%Y%m%d%H%M%S) && cd ~/Downloads && mkdir "_aiexe_project_$timestamp" && cd "_aiexe_project_$timestamp" && git clone https://github.com/kstost/aiexe && cd aiexe && npm i && npm run build && open dist/aiexe-*-arm64.dmg; } || { echo "npm is not installed. Please download and install it from https://nodejs.org."; }
+   sudo chown -R 501:20 ~/.npm 2>/dev/null; command -v npm >/dev/null 2>&1 && { timestamp=$(date +%Y%m%d%H%M%S) && cd ~/Downloads && mkdir "_aiexe_project_$timestamp" && cd "_aiexe_project_$timestamp" && git clone https://github.com/kstost/aiexe && cd aiexe && npm i && npm run build && open dist/aiexe-*.dmg; } || { echo "npm is not installed. Please download and install it from https://nodejs.org."; }
    ```
 
 ## Usage
