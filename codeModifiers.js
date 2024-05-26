@@ -145,7 +145,7 @@ export async function makeVEnvCmd(pythonCmd, spawn = false) {
                     `-ExecutionPolicy`,
                     `Bypass`,
                     `-Command`,
-                    `"& '${activateCmd}'; & ${pythonCmd}"${nulluse ? `; $null = [System.Console]::In.Close()` : ''}`
+                    `"& '${activateCmd}'; & ${pythonCmd}"${false ? `; $null = [System.Console]::In.Close()` : ''}`
                 ]
             ];
             // return [`${powershell}`, [`${powershell}`, `-NoProfile`, `-ExecutionPolicy`, `Bypass`, `-Command`, `"& '${activateCmd}'; & ${pythonCmd}${nulluse ? ` < nul` : ''}"`]];

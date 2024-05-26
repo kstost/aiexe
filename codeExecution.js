@@ -193,7 +193,10 @@ export async function shell_exec(python_code, only_save = false, silent = false,
             } catch { }
         }
         if (isWindows() && isElectron()) windowsHide = true
-        const child = spawn(...arg, { windowsHide, env, stdio: ['inherit', 'pipe', 'pipe'], cwd });
+
+        //inherit
+        //if (isWindows() && isElectron())
+        const child = spawn(...arg, { windowsHide, env, stdio: (isWindows() && isElectron()) ? ['pipe', 'pipe', 'pipe'] : ['inherit', 'pipe', 'pipe'], cwd });
         attatchWatcher(child, resolve, python_code, silent);
     });
 }
@@ -211,6 +214,7 @@ export async function execInVenv(command, app) {
 export function attatchWatcher(child, resolve, python_code, silent = false) {
     const stdout = [];
     const stderr = [];
+    (isWindows() && isElectron()) && child.stdin.end();
     child.stdout.on('data', function (data) {
         oraStop();
         stdout.push(data);
