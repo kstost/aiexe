@@ -30,7 +30,7 @@ import { promises as fsPromises } from 'fs';
 import os from 'os';
 import open from 'open';
 //::ELECTRONCODE:://
-import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain, globalShortcut, Menu } from 'electron';
 //::ELECTRONCODE:://
 // import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -38,7 +38,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.157'; // version
+const VERSION = '1.0.158'; // version
 
 const apiMethods = {
     async venvpath(body) {
@@ -546,6 +546,73 @@ if (!isElectron()) {
                 // 아무 작업도 하지 않습니다.
             });
         }
+
+        // View 메뉴 재설정
+        const menuTemplate = [
+            {
+                label: 'App',
+                submenu: [
+                    {
+                        label: 'About AIEXE',
+                        click: async () => {
+                            await open('https://youtu.be/dvx-gFx6nUw?si=o3w0knQXdQ_H3q8H');
+                        }
+                    },
+                    { type: 'separator' },
+                    {
+                        role: 'quit',
+                        accelerator: 'CommandOrControl+Q'
+                    }
+                ]
+            },
+            {
+                label: 'Edit',
+                submenu: [
+                    { role: 'undo', accelerator: 'CommandOrControl+Z' },
+                    { role: 'redo', accelerator: 'Shift+CommandOrControl+Z' },
+                    { type: 'separator' },
+                    { role: 'cut', accelerator: 'CommandOrControl+X' },
+                    { role: 'copy', accelerator: 'CommandOrControl+C' },
+                    { role: 'paste', accelerator: 'CommandOrControl+V' },
+                    { role: 'pasteandmatchstyle' },
+                    { role: 'delete' },
+                    { role: 'selectall', accelerator: 'CommandOrControl+A' }
+                ]
+            },
+
+            {
+                label: 'View',
+                submenu: devmode ? [
+                    {
+                        role: 'reload',
+                        accelerator: 'CommandOrControl+R'
+                    },
+                    {
+                        role: 'toggledevtools',
+                        accelerator: 'Alt+CommandOrControl+I'
+                    },
+                    { role: 'resetzoom' },
+                    { role: 'zoomin' },
+                    { role: 'zoomout' },
+                    { type: 'separator' },
+                    { role: 'togglefullscreen' }
+                ] : [
+                    { role: 'resetzoom' },
+                    { role: 'zoomin' },
+                    { role: 'zoomout' },
+                    { type: 'separator' },
+                    { role: 'togglefullscreen' }
+                ]
+            },
+
+            // 다른 메뉴 항목 추가
+        ];
+
+        const menu = Menu.buildFromTemplate(menuTemplate);
+        Menu.setApplicationMenu(menu);
+
+
+
         singleton.electronWindow = win;
     }
 

@@ -100,12 +100,12 @@ export async function disableVariable(variableName) {
         lines = lines.map(line => {
             const lineback = line;
             while (line.indexOf('  ') > -1) line = line.split('  ').join(' ');
-            if (line.trim().startsWith(`export ${variableName}=`)) {
-                return `# ${lineback}`;
-            }
+            if (line.trim().startsWith(`export ${variableName}=`)) return ``;
+            if (line.trim().startsWith(`# export ${variableName}=`)) return ``;
             return lineback;
         });
         content = lines.join('\n');
+        while (content.indexOf('\n\n') > -1) content = content.split('\n\n').join('\n');
         if (filePath) await fsPromises.writeFile(filePath, content);
     } catch (error) {
         printError(error);

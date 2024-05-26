@@ -31,8 +31,19 @@ window.addEventListener('load', async () => {
         window.electronAPI.send('aborting', { taskId: taskId });
         await promise;
     }
-    async function reqAPI(mode, arg) {
-        showLoading();
+
+
+    let reqAPIQueue = [];
+    async function reqAPI(mode, arg, indicator = false) {
+        reqAPIQueue.push({ mode, arg });
+        while (true) {
+            if (reqAPIQueue[0].mode === mode && reqAPIQueue[0].arg === arg) {
+                break;
+            } else {
+                await new Promise(resolve => setTimeout(resolve));
+            }
+        }
+        if (indicator) showLoading();
         if ('savestate' !== mode && 'getstatelist' !== mode) {
             if (false) console.log(mode, JSON.stringify(arg, undefined, 3));
         }
@@ -47,7 +58,8 @@ window.addEventListener('load', async () => {
         window.electronAPI.send('request', { mode, taskId, arg });
 
         let dt = await promise;
-        removeLoading();
+        if (indicator) removeLoading();
+        reqAPIQueue.shift();
         return dt;
     }
     let oneLineMessageIndicator;
@@ -238,6 +250,16 @@ window.addEventListener('load', async () => {
     let messages_ = [];
     let summary = '';
     let promptSession;
+    async function getmodelnamed() {
+        const vendorName = await reqAPI('getconfig', { key: 'USE_LLM' });
+        let modelName = '';
+        if (vendorName === 'openai') modelName = await reqAPI('getconfig', { key: 'OPENAI_MODEL' });//kn = ('OPENAI_MODEL');
+        if (vendorName === 'groq') modelName = await reqAPI('getconfig', { key: 'GROQ_MODEL' });//kn = ('GROQ_MODEL');
+        if (vendorName === 'gemini') modelName = 'gemini-pro';
+        if (vendorName === 'anthropic') modelName = await reqAPI('getconfig', { key: 'ANTHROPIC_MODEL' });//kn = ('ANTHROPIC_MODEL');
+        if (vendorName === 'ollama') modelName = await reqAPI('getconfig', { key: 'OLLAMA_MODEL' });//kn = ('OLLAMA_MODEL');
+        return modelName;
+    }
     async function aiIndicator(load = false) {
         poweredby.innerHTML = [
             `<div style="text-align:center;padding:5px;">`,
@@ -262,9 +284,10 @@ window.addEventListener('load', async () => {
             `</div>`,
         ].join('');
         [...poweredby.children].forEach(e => e.addEventListener('click', async e => {
-            await resetAllModel();
-            await resetVendor();
-            await config();
+            await configPage();
+            // await resetAllModel();
+            // await resetVendor();
+            // await config();
         }));
     }
     function seedata() {
@@ -306,7 +329,7 @@ window.addEventListener('load', async () => {
     }
 
     async function requestAI(prompt) {
-        let resultAireq = await reqAPI('aireq', { prompt, askforce: getAskForce(), summary, messages_, history: history_, first });
+        let resultAireq = await reqAPI('aireq', { prompt, askforce: getAskForce(), summary, messages_, history: history_, first }, true);
         await resultProcedure(resultAireq)
         await saveState();
     }
@@ -664,7 +687,7 @@ window.addEventListener('load', async () => {
                             }
                         }
                     }
-                    let result = await reqAPI('shell_exec', { "code": codeBody, "b64": false });
+                    let result = await reqAPI('shell_exec', { "code": codeBody, "b64": false }, true);
                     let code = result.code
                     let stdout = result.stdout
                     let stderr = result.stderr
@@ -761,21 +784,23 @@ window.addEventListener('load', async () => {
 
     {
         let menu = [
+            // {
+            //     name: 'AI 제공사 선택', async trg() {
+            //         await resetAllModel();
+            //         await resetVendor();
+            //         await config();
+            //     }
+            // },
+            // {
+            //     name: 'AI 모델 선택', async trg() {
+            //         await resetAllModel();
+            //         await config();
+            //     }
+            // },
             {
-                name: 'AI 제공사 선택', async trg() {
-                    await resetAllModel();
-                    await resetVendor();
-                    await config();
-                }
-            },
-            {
-                name: 'AI 모델 선택', async trg() {
-                    await resetAllModel();
-                    await config();
-                }
-            },
-            {
-                name: 'API Key 재설정', async trg() {
+                name: 'AI 설정', async trg() {
+                    await configPage();
+                    return;
                     let apiasking = [
                         { llmname: 'openai', key: 'OPENAI_API_KEY', title: `What is your OpenAI API key for accessing OpenAI services?` },
                         { llmname: 'groq', key: 'GROQ_API_KEY', title: `What is your GROQ API key for accessing GROQ services?` },
@@ -797,20 +822,20 @@ window.addEventListener('load', async () => {
                     await config();
                 }
             },
-            {
-                name: '모든 설정 초기화', async trg() {
-                    if (confirm('모든 설정을 초기화 하시겠습니까? 대화기록도 모두 제거됩니다.')) {
-                        await abortAllTask();
-                        await reqAPI('resetconfig');
-                        await prepareVENV();
-                        await config();
-                        // await refreshList();
-                        let els = await refreshList();
-                        if (els[0]) els[0]?.click()
+            // {
+            //     name: '모든 설정 초기화', async trg() {
+            //         if (confirm('모든 설정을 초기화 하시겠습니까? 대화기록도 모두 제거됩니다.')) {
+            //             await abortAllTask();
+            //             await reqAPI('resetconfig');
+            //             await prepareVENV();
+            //             await config();
+            //             // await refreshList();
+            //             let els = await refreshList();
+            //             if (els[0]) els[0]?.click()
 
-                    }
-                }
-            },
+            //         }
+            //     }
+            // },
             {
                 name: '코드깎는노인 유튜브', async trg() {
                     await reqAPI('open', { value: 'https://www.youtube.com/@codeteller' });
@@ -851,9 +876,14 @@ window.addEventListener('load', async () => {
                 li.innerText = `새 대화`;
             }
             li.addEventListener('click', async e => {
+                if (!await getmodelnamed()) {
+                    await configPage();
+                    return;
+                }
                 await abortAllTask();
                 chatEditor.focus();
                 chatMessages.innerText = '';
+                chatMessages.style.padding = '10px'
                 cline.splice(0, Infinity);
                 if (!file) {
                     sessionDate = getCurrentDateTime();
@@ -996,6 +1026,7 @@ window.addEventListener('load', async () => {
 
 
     async function config() {
+        return;
         let container = document.createElement('div');
         container.style.width = '100%';
         container.style.height = '100%';
@@ -1209,7 +1240,235 @@ window.addEventListener('load', async () => {
     await refreshVersionInfo();
     await prepareVENV();
     await config();
+    await aiIndicator(true);
 
 
+    async function configPage() {
+        const configContainer = chatMessages;
+        configContainer.innerText = '';
+        {
+            async function getModelInformation(vendorKey) {
+                if (vendorKey === 'openai') {
+                    return {
+                        keyname: 'OPENAI_MODEL',
+                        modelList: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']
+                    };
+                }
+                if (vendorKey === 'anthropic') {
+                    return {
+                        keyname: 'ANTHROPIC_MODEL',
+                        modelList: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307']
+                    };
+                }
+                if (vendorKey === 'groq') {
+                    return {
+                        keyname: 'GROQ_MODEL',
+                        modelList: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it']
+                    };
+                }
+                if (vendorKey === 'ollama') {
+                    return {
+                        keyname: 'OLLAMA_MODEL',
+                        modelList: await reqAPI('ollamamodellist')
+                    };
+                }
+                if (vendorKey === 'gemini') {
+                    return {
+                        keyname: 'GEMINI_MODEL',
+                        modelList: ['gemini-pro']
+                    };
+                }
+            }
+            async function makeConfigLine(configContainer, { title, type, list, keyname, placeholder, vendorKey, handleRadioChange }) {
+                const lineContainer = document.createElement('div');
+                lineContainer.className = 'aiexe_configuration_config-line';
+                configContainer.appendChild(lineContainer);
 
+                const configKeyTitle = document.createElement('div');
+                configKeyTitle.innerText = title;
+                configKeyTitle.className = 'aiexe_configuration_config-key';
+                lineContainer.appendChild(configKeyTitle);
+
+                const configValueUI = document.createElement('div');
+                configValueUI.className = 'aiexe_configuration_config-value';
+                lineContainer.appendChild(configValueUI);
+
+                if (type === 'input') {
+                    const inputElement = document.createElement('input');
+                    inputElement.classList.add('aiexe_configuration_input');
+                    inputElement.type = 'password';
+                    inputElement.___name = vendorKey;
+                    inputElement.placeholder = placeholder;
+                    inputElement.value = await reqAPI('getconfig', { key: keyname });
+                    configValueUI.appendChild(inputElement);
+                    inputElement.addEventListener('blur', async () => {
+                        await reqAPI('setconfig', { key: keyname, value: inputElement.value })
+                    });
+                    inputElement.addEventListener('keyup', async () => {
+                        await reqAPI('setconfig', { key: keyname, value: inputElement.value })
+                    });
+                } else if (type === 'radio' && list) {
+                    const radioContainer = document.createElement('div');
+                    radioContainer.className = 'aiexe_configuration_radio-container';
+                    configValueUI.appendChild(radioContainer);
+                    let defaultValue = await reqAPI('getconfig', { key: keyname })
+
+                    list.forEach((item, index) => {
+                        const radioInput = document.createElement('input');
+                        radioInput.type = 'radio';
+                        radioInput.name = title;
+                        radioInput.value = item.keyAsValue;
+                        radioInput.id = `radio-${item.keyAsValue}`;
+                        if (defaultValue ? item.keyAsValue === defaultValue : index === 0) {
+                            radioInput.checked = true;
+                        }
+                        radioInput.addEventListener('change', async () => {
+                            if (handleRadioChange) await handleRadioChange(item.keyAsValue, keyname);
+                        });
+                        radioContainer.appendChild(radioInput);
+
+                        const radioLabel = document.createElement('label');
+                        radioLabel.htmlFor = `radio-${item.keyAsValue}`;
+                        radioLabel.innerText = item.displayName;
+                        radioContainer.appendChild(radioLabel);
+                    });
+                }
+                return lineContainer;
+            }
+
+
+            // const configContainer = document.getElementById('configContainer');
+            const title = document.createElement('div');
+            title.innerText = 'Configuration';
+            title.style.background = 'rgba(255,255,255,0.05)';
+            title.style.padding = '15px';
+            configContainer.style.padding = '0px';
+            configContainer.appendChild(title);
+
+            const vendorRadio = await makeConfigLine(configContainer, {
+                title: 'AI Vendor',
+                type: 'radio',
+                keyname: 'USE_LLM',
+                list: [
+                    {
+                        displayName: 'OpenAI', // API Key required
+                        keyAsValue: 'openai',
+                    },
+                    {
+                        displayName: 'Anthropic', // API Key required
+                        keyAsValue: 'anthropic',
+                    },
+                    {
+                        displayName: 'Ollama', // No need API Key
+                        keyAsValue: 'ollama',
+                    },
+                    {
+                        displayName: 'Gemini', // API Key required, as GOOGLE
+                        keyAsValue: 'gemini',
+                    },
+                    {
+                        displayName: 'Groq', // API Key required
+                        keyAsValue: 'groq',
+                    },
+                ],
+                defaultValue: 'openai',
+                async handleRadioChange(selectedVendor, config_key) {
+                    modelContainer.innerText = '';
+                    const lines = document.querySelectorAll('.aiexe_configuration_config-line');
+                    lines.forEach(line => {
+                        const input = line.querySelector('.aiexe_configuration_input');
+                        if (input) {
+                            if (input.___name === selectedVendor) {
+                                line.classList.remove('aiexe_configuration_hidden');
+                            } else {
+                                line.classList.add('aiexe_configuration_hidden');
+                            }
+                        }
+                    });
+
+                    let oaijdf = await getModelInformation(selectedVendor);
+                    let modelRadio = await makeConfigLine(modelContainer, {
+                        title: 'Model',
+                        type: 'radio',
+                        keyname: oaijdf.keyname,
+                        list: true ? oaijdf.modelList.map(modelName => {
+                            return {
+                                displayName: modelName,
+                                keyAsValue: modelName,
+                            }
+                        }) : null,
+                        defaultValue: oaijdf.modelList[0],
+                        async handleRadioChange(model_name, config_key_model) {
+                            await reqAPI('setconfig', { key: config_key, value: selectedVendor });
+                            await reqAPI('setconfig', { key: config_key_model, value: model_name });
+                            await aiIndicator(true);
+                        }
+                    });
+                    modelRadio.querySelector('input[type="radio"]:checked').dispatchEvent(new Event('change'));
+                }
+            });
+
+            await makeConfigLine(configContainer, {
+                title: 'OPENAI API KEY',
+                type: 'input',
+                keyname: 'OPENAI_API_KEY',
+                placeholder: 'Please input API Key',
+                vendorKey: 'openai',
+            });
+            await makeConfigLine(configContainer, {
+                title: 'ANTHROPIC API KEY',
+                type: 'input',
+                keyname: 'ANTHROPIC_API_KEY',
+                placeholder: 'Please input API Key',
+                vendorKey: 'anthropic',
+            });
+            await makeConfigLine(configContainer, {
+                title: 'GOOGLE API KEY',
+                type: 'input',
+                keyname: 'GOOGLE_API_KEY',
+                placeholder: 'Please input API Key',
+                vendorKey: 'gemini',
+            });
+            await makeConfigLine(configContainer, {
+                title: 'GROQ API KEY',
+                type: 'input',
+                keyname: 'GROQ_API_KEY',
+                placeholder: 'Please input API Key',
+                vendorKey: 'groq',
+            });
+            let modelContainer = document.createElement('div');
+            configContainer.appendChild(modelContainer);
+            vendorRadio.querySelector('input[type="radio"]:checked').dispatchEvent(new Event('change'));
+
+
+            async function resetConfiguration() {
+                if (confirm('모든 설정을 초기화 하시겠습니까? 대화기록도 모두 제거됩니다.')) {
+                    await abortAllTask();
+                    await reqAPI('resetconfig');
+                    await prepareVENV();
+                    await config();
+                    // await refreshList();
+                    let els = await refreshList();
+                    if (els[0]) els[0]?.click()
+                }
+            }
+            {
+                let toool = document.createElement('div');
+                toool.style.padding = '20px'
+                toool.style.textAlign = 'right'
+                configContainer.appendChild(toool);
+                let resetbtn = document.createElement('button');
+                resetbtn.style.padding = '10px'
+                resetbtn.style.background = 'transparent'
+                resetbtn.style.border = '0px'
+                resetbtn.style.color = 'rgba(255,255,255,0.7)'
+                resetbtn.style.cursor = 'pointer'
+                resetbtn.innerText = 'Reset Configuration'
+                toool.appendChild(resetbtn);
+                resetbtn.addEventListener('click', resetConfiguration);
+
+            }
+
+        }
+    }
 });
