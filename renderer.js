@@ -863,6 +863,10 @@ window.addEventListener('load', async () => {
         })
     }
     async function startNewTalk(file) {
+        if (reqAPIQueue.length) {
+            alert('현재 진행중인 요청이 완료된 후 다시 시도해주세요')
+            return;
+        }
         if (!await getmodelnamed()) {
             await configPage();
             return;
@@ -1255,6 +1259,10 @@ window.addEventListener('load', async () => {
 
 
     async function configPage() {
+        if (reqAPIQueue.length) {
+            alert('현재 진행중인 요청이 완료된 후 다시 시도해주세요')
+            return;
+        }
         pageMode = 'config';
         const configContainer = chatMessages;
         configContainer.innerText = '';
