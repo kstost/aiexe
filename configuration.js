@@ -85,7 +85,7 @@ export async function openEndedPrompt(key, prompt, force = false) {
 
 
 export async function disableAllVariable() {
-    const variables = ['UPDATE_CHECK', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'GROQ_API_KEY', 'USE_LLM', 'ANTHROPIC_API_KEY', 'PYTHON_VENV_PATH', 'OLLAMA_PROXY_SERVER', 'OLLAMA_MODEL', 'OPENAI_MODEL', 'GROQ_MODEL', 'ANTHROPIC_MODEL'];
+    const variables = ['USE_REVIEW', 'UPDATE_CHECK', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'GROQ_API_KEY', 'USE_LLM', 'ANTHROPIC_API_KEY', 'PYTHON_VENV_PATH', 'OLLAMA_PROXY_SERVER', 'OLLAMA_MODEL', 'OPENAI_MODEL', 'GROQ_MODEL', 'ANTHROPIC_MODEL'];
     for (const variableName of variables) {
         await disableVariable(variableName);
     }
@@ -232,6 +232,7 @@ export async function setVarVal(key, value, force = false) {
     const regChecker = {
         UPDATE_CHECK: typeone,
         USE_LLM: typeone,
+        USE_REVIEW: typeone,
         GOOGLE_API_KEY: typeone,
         OPENAI_API_KEY: typeone,
         GROQ_API_KEY: typeone,

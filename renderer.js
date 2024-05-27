@@ -707,14 +707,18 @@ window.addEventListener('load', async () => {
                     cline.push(resultContainer);
                     await saveState();
                     if (getAskForce() === "ask_opinion") {
-                        try {
-                            await requestAI(promptSession.prompt);
-                        } catch (e) {
-                            console.log('abort', e);
-                            if (e === 10001) {
-                                console.log('렌더러에 의한 중단');
-                                /* 렌더러에 의한 중단*/
+                        if (getUseReview() === 'YES') {
+                            try {
+                                await requestAI(promptSession.prompt);
+                            } catch (e) {
+                                console.log('abort', e);
+                                if (e === 10001) {
+                                    console.log('렌더러에 의한 중단');
+                                    /* 렌더러에 의한 중단*/
+                                }
                             }
+                        } else {
+                            setAskForce('responsed_opinion');
                         }
                         return;
                     }
@@ -1262,8 +1266,14 @@ window.addEventListener('load', async () => {
     }
 
 
+    async function getUseReview() {
+        return await reqAPI('getconfig', { key: 'USE_REVIEW' });
+    }
     async function configPage() {
         await abortAllTask();
+
+        if (!await getUseReview()) await reqAPI('setconfig', { key: 'USE_REVIEW', value: 'YES' });
+
         if (false && reqAPIQueue.length) {
             alert('현재 진행중인 요청이 완료된 후 다시 시도해주세요')
             return;
@@ -1304,9 +1314,10 @@ window.addEventListener('load', async () => {
                     };
                 }
             }
-            async function makeConfigLine(configContainer, { title, type, list, keyname, placeholder, vendorKey, handleRadioChange }) {
+            async function makeConfigLine(configContainer, { title, description, type, list, keyname, placeholder, vendorKey, handleRadioChange }) {
                 const lineContainer = document.createElement('div');
                 lineContainer.className = 'aiexe_configuration_config-line';
+                lineContainer.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
                 configContainer.appendChild(lineContainer);
 
                 const configKeyTitle = document.createElement('div');
@@ -1336,6 +1347,15 @@ window.addEventListener('load', async () => {
                     const radioContainer = document.createElement('div');
                     radioContainer.className = 'aiexe_configuration_radio-container';
                     configValueUI.appendChild(radioContainer);
+
+                    if (description) {
+                        const descel = document.createElement('div');
+                        descel.innerText = description;
+                        descel.style.padding = `5px`;
+                        descel.style.color = `rgba(255,255,255,0.3)`;
+                        descel.style.display = `block`;
+                        radioContainer.appendChild(descel);
+                    }
                     let defaultValue = await reqAPI('getconfig', { key: keyname })
 
                     list.forEach((item, index) => {
@@ -1463,6 +1483,26 @@ window.addEventListener('load', async () => {
             });
             let modelContainer = document.createElement('div');
             configContainer.appendChild(modelContainer);
+
+
+            await makeConfigLine(configContainer, {
+                title: 'Review',
+                description: 'Whether to conduct a review by AI after executing the code.',
+                type: 'radio',
+                keyname: 'USE_REVIEW',
+                list: true ? ['YES', 'NO'].map(modelName => {
+                    return {
+                        displayName: modelName,
+                        keyAsValue: modelName,
+                    }
+                }) : null,
+                async handleRadioChange(model_name, config_key_model) {
+                    await reqAPI('setconfig', { key: 'USE_REVIEW', value: model_name });
+                }
+            });
+
+
+
             vendorRadio.querySelector('input[type="radio"]:checked').dispatchEvent(new Event('change'));
 
 
