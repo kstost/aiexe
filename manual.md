@@ -23,7 +23,7 @@ node cloneCLI.js && mv index.js index.js.electron && mv _temp.js index.js && npm
 ```bash
 brew install --cask xquartz
 brew install --cask wine-stable
-npm run build -- --win --x64
+npm run build -- --win --x64 && cd dist && md5 *.exe && pwd
 ```
 
 ## Things needed to build macos version

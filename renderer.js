@@ -57,7 +57,8 @@ window.addEventListener('load', async () => {
         queue[taskId] = { _resolve, _reject };
         window.electronAPI.send('request', { mode, taskId, arg });
 
-        let dt = await promise;
+        let dt;
+        try { dt = await promise; } catch { }
         if (indicator) removeLoading();
         reqAPIQueue.shift();
         return dt;
@@ -863,7 +864,8 @@ window.addEventListener('load', async () => {
         })
     }
     async function startNewTalk(file) {
-        if (reqAPIQueue.length) {
+        await abortAllTask();
+        if (false && reqAPIQueue.length) {
             alert('현재 진행중인 요청이 완료된 후 다시 시도해주세요')
             return;
         }
@@ -871,7 +873,6 @@ window.addEventListener('load', async () => {
             await configPage();
             return;
         }
-        await abortAllTask();
         pageMode = 'talk';
         chatEditor.focus();
         chatMessages.innerText = '';
@@ -1259,7 +1260,8 @@ window.addEventListener('load', async () => {
 
 
     async function configPage() {
-        if (reqAPIQueue.length) {
+        await abortAllTask();
+        if (false && reqAPIQueue.length) {
             alert('현재 진행중인 요청이 완료된 후 다시 시도해주세요')
             return;
         }
