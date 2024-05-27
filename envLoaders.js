@@ -1,7 +1,7 @@
 /* global process */
 /* eslint-disable no-unused-vars, no-constant-condition, no-control-regex */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
-import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, generateModuleInstallCode, asPyModuleName } from './codeExecution.js'
+import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, generateModuleInstallCode, asPyModuleName, shelljs_exec } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal, openEndedPrompt, multipleChoicePrompt } from './configuration.js'
@@ -12,7 +12,6 @@ import singleton from './singleton.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
 import axios from 'axios';
-import shelljs from 'shelljs';
 import readline from 'readline';
 import path from 'path';
 import fs from 'fs';
@@ -244,7 +243,7 @@ export async function which(cmd) {
         return stdout.trim();
     } else {
         return await new Promise(resolve => {
-            shelljs.exec(`which ${cmd}`, { silent: true }, function (code, stdout, stderr) {
+            shelljs_exec(`which ${cmd}`, { silent: true }, function (code, stdout, stderr) {
                 if (code === 0) {
                     resolve(stdout.trim())
                 } else {

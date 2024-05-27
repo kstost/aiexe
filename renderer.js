@@ -168,10 +168,13 @@ window.addEventListener('load', async () => {
     // chatEditor.setValue(`raise error don't catch just let it raise error`);
     let cline = [];
     window.cline = cline;
+    let pageMode = 'config';
     async function sendingPrompt(cm, text) {
         if (loading) return;
         if (!text.trim()) return;
-        if (text.trim()[0] === '/') {
+        // alert(pageMode);
+        if (pageMode !== 'talk') await startNewTalk();
+        if (text.trim().startsWith('///')) {
             let commandLine = text.trim();
             while (commandLine.indexOf('  ') > -1) commandLine = commandLine.split('  ').join(' ');
             let args = commandLine.substring(1, Infinity).split(' ');
@@ -859,7 +862,48 @@ window.addEventListener('load', async () => {
             })
         })
     }
-
+    async function startNewTalk(file) {
+        if (!await getmodelnamed()) {
+            await configPage();
+            return;
+        }
+        await abortAllTask();
+        pageMode = 'talk';
+        chatEditor.focus();
+        chatMessages.innerText = '';
+        chatMessages.style.padding = '10px'
+        cline.splice(0, Infinity);
+        if (!file) {
+            sessionDate = getCurrentDateTime();
+            promptSession = null;
+            history_ = [];
+            messages_ = [];
+            askforce = '';
+            summary = '';
+            first = true;
+            return;
+        }
+        let stateData = await reqAPI('getstate', { filename: file });
+        let parsed = JSON.parse(stateData);
+        sessionDate = parsed.environment.sessionDate;
+        promptSession = parsed.environment.promptSession;
+        history_ = parsed.environment.history;
+        messages_ = parsed.environment.messages;
+        askforce = parsed.environment.askforce;
+        summary = parsed.environment.summary;
+        first = parsed.environment.first;
+        for (let i = 0; i < parsed.conversationLine.length; i++) {
+            let lineinfo = parsed.conversationLine[i];
+            let text = lineinfo.values[0];
+            if (lineinfo.type === 3) {
+                text = JSON.stringify({ stdout: lineinfo.values[0], stderr: lineinfo.values[1] })
+            }
+            let last = parsed.conversationLine.length - 1 === i;
+            const resultContainer = createConversationLine({ text: text, type: lineinfo.type, parent: chatMessages, askforce: lineinfo.askforce, restore: true, last });
+            cline.push(resultContainer);
+        }
+        scrollSmoothToBottom(false);
+    }
     async function refreshList() {
         let neededPackageListOfObject = await reqAPI('getstatelist');
         talklist.innerText = '';
@@ -875,47 +919,7 @@ window.addEventListener('load', async () => {
             } else {
                 li.innerText = `새 대화`;
             }
-            li.addEventListener('click', async e => {
-                if (!await getmodelnamed()) {
-                    await configPage();
-                    return;
-                }
-                await abortAllTask();
-                chatEditor.focus();
-                chatMessages.innerText = '';
-                chatMessages.style.padding = '10px'
-                cline.splice(0, Infinity);
-                if (!file) {
-                    sessionDate = getCurrentDateTime();
-                    promptSession = null;
-                    history_ = [];
-                    messages_ = [];
-                    askforce = '';
-                    summary = '';
-                    first = true;
-                    return;
-                }
-                let stateData = await reqAPI('getstate', { filename: file });
-                let parsed = JSON.parse(stateData);
-                sessionDate = parsed.environment.sessionDate;
-                promptSession = parsed.environment.promptSession;
-                history_ = parsed.environment.history;
-                messages_ = parsed.environment.messages;
-                askforce = parsed.environment.askforce;
-                summary = parsed.environment.summary;
-                first = parsed.environment.first;
-                for (let i = 0; i < parsed.conversationLine.length; i++) {
-                    let lineinfo = parsed.conversationLine[i];
-                    let text = lineinfo.values[0];
-                    if (lineinfo.type === 3) {
-                        text = JSON.stringify({ stdout: lineinfo.values[0], stderr: lineinfo.values[1] })
-                    }
-                    let last = parsed.conversationLine.length - 1 === i;
-                    const resultContainer = createConversationLine({ text: text, type: lineinfo.type, parent: chatMessages, askforce: lineinfo.askforce, restore: true, last });
-                    cline.push(resultContainer);
-                }
-                scrollSmoothToBottom(false);
-            });
+            li.addEventListener('click', () => startNewTalk(file));
         });
         return el;
     }
@@ -1216,7 +1220,8 @@ window.addEventListener('load', async () => {
 
 
     let els = await refreshList();
-    if (els[0]) els[0]?.click()
+    await startNewTalk()
+    // if (els[0]) els[0]?.click()
 
 
     async function refreshVersionInfo() {
@@ -1241,9 +1246,16 @@ window.addEventListener('load', async () => {
     await prepareVENV();
     await config();
     await aiIndicator(true);
+    await showMainUI();
+    async function showMainUI() {
+        [...document.body.children].forEach(el => {
+            el.style.opacity = '1';
+        });
+    }
 
 
     async function configPage() {
+        pageMode = 'config';
         const configContainer = chatMessages;
         configContainer.innerText = '';
         {

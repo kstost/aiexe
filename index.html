@@ -302,11 +302,15 @@
         transform: rotate(360deg);
       }
     }
+
+    body {
+      background: #111111;
+    }
   </style>
 </head>
 
-<body>
-  <div class="sidebar no-select" id="sidebar">
+<body style="background-color: #000000;">
+  <div class="sidebar no-select" id="sidebar" style="opacity: 0;">
     <button class="toggle-btn" id="toggle-btn">三</button>
     <div id="poweredby" style="padding:0px;">
     </div>
@@ -322,7 +326,7 @@
 
   </div>
 
-  <div class="chat-container" id="chat-container">
+  <div class="chat-container" id="chat-container" style="opacity: 0;">
     <div class="chat-messages" id="chat-messages">
       <!-- 채팅 메시지 예시 -->
     </div>

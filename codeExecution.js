@@ -13,7 +13,6 @@ import pyModuleTable from './pyModuleTable.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
 import axios from 'axios';
-import shelljs from 'shelljs';
 import readline from 'readline';
 import path from 'path';
 import fs from 'fs';
@@ -24,7 +23,7 @@ import figlet from 'figlet';
 import { fileURLToPath } from 'url';
 import { Command } from 'commander';
 import { promises as fsPromises } from 'fs';
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import os from 'os';
 import singleton from './singleton.js'
 
@@ -200,17 +199,6 @@ export async function shell_exec(python_code, only_save = false, silent = false,
         attatchWatcher(child, resolve, python_code, silent);
     });
 }
-export async function execInVenv(command, app) {
-    await createVENV();
-    return new Promise(async (resolve, reject) => {
-        await oraStart(`Executing code`);
-        const python_interpreter_ = await getPythonPipPath(app.toLowerCase());
-        if (!python_interpreter_) { await oraFail(chalk.red('Python Interpreter Not Found')); reject(new Error('Python Interpreter Not Found')); return; }
-        const pythonCmd = `'${python_interpreter_}' ${addslashes(command)}`;
-        const child = shelljs.exec(await makeVEnvCmd(pythonCmd), { async: true, silent: true });
-        attatchWatcher(child, resolve);
-    });
-}
 export function attatchWatcher(child, resolve, python_code, silent = false) {
     const stdout = [];
     const stderr = [];
@@ -234,9 +222,23 @@ export function attatchWatcher(child, resolve, python_code, silent = false) {
         resolve({ code, stdout: stdout.join(''), stderr: stderr.join(''), python_code });
     });
 }
+export async function execInVenv(cmd, opt, callback) {
+    // exec(cmd, (error, stdout, stderr) => {
+    //     let code = 0;
+    //     if (error) code = error.code
+    //     callback(code, stdout, stderr);
+    // });
+}
+export async function shelljs_exec(cmd, opt, callback) {
+    exec(cmd, (error, stdout, stderr) => {
+        let code = 0;
+        if (error) code = error.code
+        callback(code, stdout, stderr);
+    });
+}
 export async function execPlain(cmd) {
     return new Promise(resolve => {
-        shelljs.exec(cmd, { silent: true, }, (code, stdout, stderr) => {
+        shelljs_exec(cmd, { silent: true, }, (code, stdout, stderr) => {
             resolve({ code, stdout, stderr });
         })
     })
@@ -278,13 +280,13 @@ export async function execAdv(cmd, mode = true, opt = {}) {
     if (isWindows()) {
         const powershell = await getPowerShellPath();
         return new Promise(resolve => {
-            shelljs.exec(mode ? `"${powershell}" -Command "${cmd}"` : cmd, { silent: true, ...opt }, (code, stdout, stderr) => {
+            shelljs_exec(mode ? `"${powershell}" -Command "${cmd}"` : cmd, { silent: true, ...opt }, (code, stdout, stderr) => {
                 resolve({ code, stdout, stderr });
             })
         })
     } else {
         return await new Promise(function (resolve) {
-            shelljs.exec(cmd, { silent: true, ...opt }, function (code, stdout, stderr) {
+            shelljs_exec(cmd, { silent: true, ...opt }, function (code, stdout, stderr) {
                 resolve({ code, stdout, stderr });
             });
         });

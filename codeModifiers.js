@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
-import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, getPowerShellPath, generateModuleInstallCode } from './codeExecution.js'
+import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, getPowerShellPath, generateModuleInstallCode, shelljs_exec } from './codeExecution.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
 import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
@@ -10,7 +10,6 @@ import promptTemplate from './translationPromptTemplate.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
 import axios from 'axios';
-import shelljs from 'shelljs';
 import readline from 'readline';
 import path from 'path';
 import fs from 'fs';
@@ -123,7 +122,7 @@ export async function code_validator(filepath) { // OK
     const pythonCmd = `'${python_interpreter}' -m py_compile '${filepath}'`;
     const runcmd = await makeVEnvCmd(pythonCmd);
     return new Promise(resolve => {
-        shelljs.exec(runcmd, { silent: true }, function (code, stdout, stderr) {
+        shelljs_exec(runcmd, { silent: true }, function (code, stdout, stderr) {
             resolve(stderr.trim())
         });
     });

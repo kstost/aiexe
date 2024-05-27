@@ -11,7 +11,6 @@ import promptTemplate from './translationPromptTemplate.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
 import axios from 'axios';
-import shelljs from 'shelljs';
 import readline from 'readline';
 import path from 'path';
 import fs from 'fs';

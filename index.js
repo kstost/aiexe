@@ -2,7 +2,7 @@
 /* global process, Buffer */
 /* eslint-disable no-unused-vars, no-unreachable, no-constant-condition */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text, isModelLlamas } from './aiFeatures.js'
-import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, execPlain, getPowerShellPath, moduleValidator, generateModuleInstallCode, neededPackageOfCode, procPlainText } from './codeExecution.js'
+import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, execPlain, getPowerShellPath, moduleValidator, generateModuleInstallCode, neededPackageOfCode, procPlainText, shelljs_exec } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron, reqRenderer, currentLatestVersionOfGitHub } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal } from './configuration.js'
@@ -16,7 +16,6 @@ import singleton from './singleton.js';
 import chalk from 'chalk';
 import { highlight } from 'cli-highlight';
 import axios from 'axios';
-import shelljs from 'shelljs';
 import readline from 'readline';
 import path from 'path';
 import fs from 'fs';
@@ -38,7 +37,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.158'; // version
+const VERSION = '1.0.159'; // version
 
 const apiMethods = {
     async venvpath(body) {
@@ -291,10 +290,26 @@ if (!isElectron()) {
             .option('-m, --choosemodel', 'Choose LLM Model')
             .option('-b, --debug <scopename>', 'Debug mode', '')
             .option('-a, --api <apimode>', 'API mode', '')
-            .option('-p, --python <command>', 'Run a command in the Python virtual environment')
+            // .option('-p, --python <command>', 'Run a command in the Python virtual environment')
             .action(async (prompt, options) => {
 
                 singleton.options = options;
+                if (singleton?.options?.debug === 'temptest') {
+                    // npm run start -- -b temptest
+                    {
+                        let command = 'ls11111111111111111111111';
+                        shelljs_exec(command, { silent: true, }, (code, stdout, stderr) => { console.log({ command, code, stdout, stderr }); });
+                    }
+                    {
+                        let command = 'dir';
+                        shelljs_exec(command, { silent: true, }, (code, stdout, stderr) => { console.log({ command, code, stdout, stderr }); });
+                    }
+                    {
+                        let command = 'ls';
+                        shelljs_exec(command, { silent: true, }, (code, stdout, stderr) => { console.log({ command, code, stdout, stderr }); });
+                    }
+                    return;
+                }
                 if (singleton?.options?.debug === 'ollama_server_test') {
                     let list = await turnOnOllamaAndGetModelList();
                     await singleton.debug({ list }, 'ollama_server_test');
@@ -305,7 +320,7 @@ if (!isElectron()) {
                     await (async () => {
                         async function execTest(cmd) {
                             return new Promise(resolve => {
-                                shelljs.exec(cmd, { silent: true, }, (code, stdout, stderr) => {
+                                shelljs_exec(cmd, { silent: true, }, (code, stdout, stderr) => {
                                     resolve({ code, stdout, stderr });
                                 })
                             })
@@ -357,16 +372,6 @@ if (!isElectron()) {
                 if (!isWindows() && !bash_path) {
                     console.error('This app requires bash to function.')
                     process.exit(1)
-                }
-                if (options.python) {
-                    try {
-                        await checkPythonForTermination();
-                        const clone = options.python.split(' ');
-                        const commd = clone[0];
-                        clone.shift();
-                        await execInVenv(clone.join(' '), commd);
-                    } catch (errorInfo) { printError(errorInfo); }
-                    return;
                 }
                 if (options.destination) {
                     try {
