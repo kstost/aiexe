@@ -95,22 +95,25 @@ window.addEventListener('load', async () => {
             const err = document.createElement('div');
             err.innerText = reqValue;
             err.style.color = 'rgb(239 82 82)';
-            removeLoading();
-            showIndicator(err)
-            showLoading();
+            simpleIndi(err);
             resValue = reqValue;
         }
         if (arg.mode === 'outnotify') {
             const err = document.createElement('div');
             err.innerText = reqValue;
             err.style.color = '#5fc868';
-            removeLoading();
-            showIndicator(err)
-            showLoading();
+            simpleIndi(err);
             resValue = reqValue;
         }
         window.electronAPI.send('resolving', { taskId: arg.taskId, arg: resValue });
     });
+    function simpleIndi(err) {
+        let loadings = !!loading;
+        if (loadings) removeLoading();
+        showIndicator(err)
+        if (loadings) showLoading();
+        else scrollSmoothToBottom();
+    }
     window.electronAPI.receive('aborting_queued', (arg) => {
         let taskId = arg.taskId;
         if (abortedTasks[taskId]) abortedTasks[taskId]();

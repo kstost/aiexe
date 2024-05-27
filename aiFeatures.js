@@ -681,7 +681,6 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 try {
                     python_code = await aiChat(messages, parameters, taskId);
                 } catch (e) {
-                    await oraStop();
                     printError(e);
                     const message = e?.response?.data?.error?.message;
                     if (isContextWindowExceeded(message)) {
@@ -708,7 +707,6 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 try {
                     python_code = await aiChat(messages, parameters, taskId);
                 } catch (e) {
-                    await oraStop();
                     printError(e);
                     const message = e?.response?.data?.error?.message;
                     if (isContextWindowExceeded(message)) {
@@ -734,7 +732,6 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 try {
                     python_code = await aiChat(messages, parameters, taskId)
                 } catch (e) {
-                    await oraStop();
                     printError(e);
                     await oraFail(chalk.redBright(e?.response?.data?.error?.message || ''));
                     if (isElectron()) { abort = true; abortReason = e?.response?.data?.error?.message; break; }
@@ -754,7 +751,6 @@ export async function code_generator(summary, messages_ = [], history = [], askf
                 try {
                     python_code = await aiChat(messages, parameters, taskId);
                 } catch (e) {
-                    await oraStop();
                     printError(e);
                     await oraFail(chalk.redBright(e?.response?.data?.error?.message || ''));
                     if (isElectron()) { abort = true; abortReason = e?.response?.data?.error?.message; break; }

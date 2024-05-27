@@ -1,6 +1,6 @@
 {
   "name": "aiexe",
-  "version": "1.0.162",
+  "version": "1.0.163",
   "description": "A cutting-edge powerful AI agent",
   "main": "index.js",
   "type": "module",
