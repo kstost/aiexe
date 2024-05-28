@@ -37,7 +37,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.164'; // version
+const VERSION = '1.0.165'; // version
 
 const apiMethods = {
     async venvpath(body) {
@@ -154,7 +154,8 @@ const apiMethods = {
         if (!body?.result) return;
         if (!body?.messages_) return;
         if (!body?.history) return;
-        return await resultAssigning(body?.python_code, body?.result, body?.messages_, body?.history, true);
+        // if (!body?.reviewMode) return;
+        return await resultAssigning(body?.python_code, body?.result, body?.messages_, body?.history, true, !!(body?.reviewMode));
     },
     async errorprompthandle(body) {
         return await errorPromptHandle(body.request, body.history, body.askforce, body.promptSession);
@@ -537,7 +538,7 @@ if (!isElectron()) {
             // if (process.env.NODE_ENV === 'development') {
             // }
         });
-        if (!devmode) {
+        if (false && !devmode) {
             globalShortcut.register('CommandOrControl+Shift+I', () => {
                 // 아무 작업도 하지 않습니다.
             });

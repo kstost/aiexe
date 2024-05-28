@@ -101,8 +101,9 @@ export async function errorPromptHandle(request, history, askforce, promptSessio
     }
     return { request, history, askforce, promptSession };
 }
-export async function resultAssigning(python_code, result, messages_, history, apimode = false) {
+export async function resultAssigning(python_code, result, messages_, history, apimode = false, reviewMode = true) {
     let askforce;
+    if (!isElectron()) reviewMode = true;
     if (result?.code === 0) {
         // 코드 수행 성공.
         if (!apimode) await strout(chalk.greenBright.bold(`✔ The code ran successfully`))
@@ -128,19 +129,32 @@ export async function resultAssigning(python_code, result, messages_, history, a
         let stdout = (result?.stdout || '').trim();
         let stderr = (result?.stderr || '').trim();
         resetHistory(history);
-        addHistory(history, {
-            role: "user",
-            stdout: `${threeticks}stdout\n${stdout}\n${threeticks}${stderr ? `\n\n${threeticks}stderr\n${stderr}\n${threeticks}` : ''}`,
-            content: `
-        ${await isModelLlamas() ? `이전에 제공한 코드를 실행하여 다음과 같은 결과를 얻었습니다.` : `I executed the code you provided earlier and obtained the following results:`}
-        ${'\n\n' + `{{STDOUT}}` + '\n\n'}
-        ${await isModelLlamas() ?
-                    `이 결과가 정확하고 예상한 대로인지 확인해 주시겠습니까? 또한, 이러한 결과가 코드의 맥락과 우리가 해결하려는 문제에 대해 무엇을 의미하는지 설명해주세요.\n지침\n- 한국어 이외의 다른 언어는 포함하지 마세요.\n- 오직 대한민국의 공식 언어인 한국어로만 모든것을 설명하세요.` :
-                    `Could you please confirm if these results are correct and as expected? Additionally, I would greatly appreciate it if you could explain what these results signify in the context of the code and the problem we are trying to solve.\n\nINSTRUCTION\n- If user's request is written in korean, then response in korean.`
-                }
-        `
-        });
-        askforce = 'ask_opinion';
+        if (reviewMode) {
+            addHistory(history, {
+                role: "user",
+                stdout: `${threeticks}stdout\n${stdout}\n${threeticks}${stderr ? `\n\n${threeticks}stderr\n${stderr}\n${threeticks}` : ''}`,
+                content: `
+                        ${await isModelLlamas() ? `이전에 제공한 코드를 실행하여 다음과 같은 결과를 얻었습니다.` : `I executed the code you provided earlier and obtained the following results:`}
+                        ${'\n\n' + `{{STDOUT}}` + '\n\n'}
+                        ${await isModelLlamas() ?
+                        `이 결과가 정확하고 예상한 대로인지 확인해 주시겠습니까? 또한, 이러한 결과가 코드의 맥락과 우리가 해결하려는 문제에 대해 무엇을 의미하는지 설명해주세요.\n지침\n- 한국어 이외의 다른 언어는 포함하지 마세요.\n- 오직 대한민국의 공식 언어인 한국어로만 모든것을 설명하세요.` :
+                        `Could you please confirm if these results are correct and as expected? Additionally, I would greatly appreciate it if you could explain what these results signify in the context of the code and the problem we are trying to solve.\n\nINSTRUCTION\n- If user's request is written in korean, then response in korean.`
+                    }
+                        `
+            });
+            askforce = 'ask_opinion';
+        } else {
+            addHistory(history, {
+                role: "user",
+                stdout: `${threeticks}stdout\n${stdout}\n${threeticks}${stderr ? `\n\n${threeticks}stderr\n${stderr}\n${threeticks}` : ''}`,
+                content: `
+                        ${`I executed the code you provided earlier and obtained the following results:`}
+                        ${'\n\n' + `{{STDOUT}}` + '\n\n'}
+                        ${``}
+                        `
+            });
+            askforce = '';
+        }
     } else {
         if (!apimode) await strout(chalk.redBright.bold(`✔ The code failed to run because of an error`))
         addHistory(history, { role: 'assistant', content: "```\n" + python_code + "\n```" });

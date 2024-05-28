@@ -209,7 +209,7 @@ window.addEventListener('load', async () => {
                     await requestAI(text);
                 } catch (e) {
                     if (e === 10001) {
-                        console.log('렌더러에 의한 중단')
+                        // console.log('렌더러에 의한 중단')
                         /* 렌더러에 의한 중단*/
                     }
                 }
@@ -224,9 +224,9 @@ window.addEventListener('load', async () => {
                 try {
                     await requestAI(text);
                 } catch (e) {
-                    console.log('abort', e);
+                    // console.log('abort', e);
                     if (e === 10001) {
-                        console.log('렌더러에 의한 중단');
+                        // console.log('렌더러에 의한 중단');
                         /* 렌더러에 의한 중단*/
                     }
                 }
@@ -241,9 +241,9 @@ window.addEventListener('load', async () => {
                 try {
                     await requestAI(text);
                 } catch (e) {
-                    console.log('abort', e);
+                    // console.log('abort', e);
                     if (e === 10001) {
-                        console.log('렌더러에 의한 중단');
+                        // console.log('렌더러에 의한 중단');
                         /* 렌더러에 의한 중단*/
                     }
                 }
@@ -516,9 +516,9 @@ window.addEventListener('load', async () => {
                         try {
                             await requestAI(promptSession.prompt);
                         } catch (e) {
-                            console.log('abort', e);
+                            // console.log('abort', e);
                             if (e === 10001) {
-                                console.log('렌더러에 의한 중단');
+                                // console.log('렌더러에 의한 중단');
                                 /* 렌더러에 의한 중단*/
                             }
                         }
@@ -684,13 +684,13 @@ window.addEventListener('load', async () => {
                         let packageList = Object.keys(neededPackageListOfObject);
 
                         const chosen = await createConversationLine({ text: JSON.stringify(neededPackageListOfObject), type: 6, askforce: getAskForce(), parent: parent });
-                        console.log(chosen);
+                        // console.log(chosen);
                         // cline.push(resultContainer);
 
                         if (true) {
                             for (let i = 0; i < chosen.length; i++) {
                                 let installResult = await reqAPI('installpackage', { name: chosen[i] });
-                                console.log('install', chosen[i], installResult)
+                                // console.log('install', chosen[i], installResult)
                             }
                         }
                     }
@@ -698,7 +698,8 @@ window.addEventListener('load', async () => {
                     let code = result.code
                     let stdout = result.stdout
                     let stderr = result.stderr
-                    let resggd = await reqAPI('resultassigning', { python_code: codeBody, result, messages_: messages_, history: history_ });
+                    let reviewMode = await getUseReview() === 'YES';
+                    let resggd = await reqAPI('resultassigning', { python_code: codeBody, result, messages_: messages_, history: history_, reviewMode });
                     setAskForce(resggd.askforce);
 
                     history_ = resggd.history;
@@ -706,20 +707,29 @@ window.addEventListener('load', async () => {
                     const resultContainer = createConversationLine({ text: JSON.stringify({ stdout, stderr }), type: 3, askforce: getAskForce(), parent: parent });
                     cline.push(resultContainer);
                     await saveState();
+                    if (getAskForce() === "") {
+                        messages_.push(...history_, { role: 'assistant', content: 'I will refer to it in future work.' })
+                        history_.splice(0, Infinity);
+                        // console.log(2, messages_)
+                        // console.log(1, history_)
+                        return;
+                    }
                     if (getAskForce() === "ask_opinion") {
-                        if (getUseReview() === 'YES') {
-                            try {
-                                await requestAI(promptSession.prompt);
-                            } catch (e) {
-                                console.log('abort', e);
-                                if (e === 10001) {
-                                    console.log('렌더러에 의한 중단');
-                                    /* 렌더러에 의한 중단*/
-                                }
+                        try {
+                            await requestAI(promptSession.prompt);
+                        } catch (e) {
+                            // console.log('abort', e);
+                            if (e === 10001) {
+                                // console.log('렌더러에 의한 중단');
+                                /* 렌더러에 의한 중단*/
                             }
-                        } else {
-                            setAskForce('responsed_opinion');
                         }
+                        // if (await getUseReview() === 'YES') {
+                        // } else {
+                        //     setAskForce('');
+                        //     console.log(2, messages_)
+                        //     console.log(1, history_)
+                        // }
                         return;
                     }
 
@@ -737,9 +747,9 @@ window.addEventListener('load', async () => {
                     try {
                         await requestAI(promptSession.prompt);
                     } catch (e) {
-                        console.log('abort', e);
+                        // console.log('abort', e);
                         if (e === 10001) {
-                            console.log('렌더러에 의한 중단');
+                            // console.log('렌더러에 의한 중단');
                             /* 렌더러에 의한 중단*/
                         }
                     }
