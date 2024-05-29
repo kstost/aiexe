@@ -1,19 +1,122 @@
 /* global CodeMirror */
 /* eslint-disable no-unused-vars, no-unreachable, no-constant-condition */
-// import { threeticks, threespaces, disableOra, limitline, annn, responseTokenRatio, preprocessing, traceError, contextWindows, colors, forignLanguage, greetings, howAreYou, whatAreYouDoing, langtable } from './constants.js'
-// const { ipcRenderer } = require('electron');
 
-// ipcRenderer.on('init', (event, data) => {
-//     console.log(data.message); // "Hello from Main Process!" 출력
-// });
-
-
+const constants = {
+    CURRENT_MODE: {
+        WAITING: "waiting",
+        CHOOSING: "choosing", // constants.CURRENT_MODE.CHOOSING
+        ERROR: "run_code_causes_error", // constants.CURRENT_MODE.ERROR
+    },
+    ASKFORCE: {
+        ERROR: "run_code_causes_error", // constants.ASKFORCE.ERROR
+        ASKOPINION: "ask_opinion", // constants.ASKFORCE.ASKOPINION
+    },
+}
+const vendorList = [
+    {
+        displayName: 'OpenAI', // API Key required
+        keyAsValue: 'openai',
+    },
+    {
+        displayName: 'Anthropic', // API Key required
+        keyAsValue: 'anthropic',
+    },
+    {
+        displayName: 'Ollama', // No need API Key
+        keyAsValue: 'ollama',
+    },
+    {
+        displayName: 'Gemini', // API Key required, as GOOGLE
+        keyAsValue: 'gemini',
+    },
+    {
+        displayName: 'Groq', // API Key required
+        keyAsValue: 'groq',
+    },
+];
+function getCurrentDateTime() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+    return `${year}${month}${day}_${hours}${minutes}${seconds}_${milliseconds}`;
+}
+function removeDescriptionFromCode(code) {
+    if (!code) return '';
+    return (code?.split('\n'))?.filter(line => line?.trim()[0] !== '#').join('\n')
+}
+async function assertion() {
+    console.log('ERROR', ...arguments);
+}
+function validateMessageStructure(messages_) {
+    if (!messages_) return false;
+    if (messages_.constructor !== Array) return false;
+    for (let i = 0; i < messages_.length; i++) {
+        if (messages_[i]?.constructor !== Object) return false;
+        if (messages_[i]?.content?.constructor !== String) return false;
+        if (messages_[i]?.role?.constructor !== String) return false;
+        if (i % 2 === 0 && messages_[i]?.role !== 'user') return false;
+        if (i % 2 === 1 && messages_[i]?.role !== 'assistant') return false;
+        if (messages_[i]?.stdout?.constructor === String) {
+            let vd = messages_[i]?.content?.indexOf(`{{STDOUT}}`);
+            if (vd === undefined) return false;
+            if (vd === -1) return false;
+        }
+    }
+    return true;
+}
 window.addEventListener('load', async () => {
-    // console.log
-    // console.log(threeticks);
-    let currentMode = 'waiting';
+    //------------------------
+    let first = true;
+    let askforce = '';
+    let history_ = [];
+    let messages_ = [];
+    let summary = '';
+    let promptSession;
+    let currentMode = constants.CURRENT_MODE.WAITING;
     let currdata;
     let currentInputViews;
+    //------------------------
+    async function saveState() {
+        const conversationLine = cline.map(line => {
+            let data = line[Symbol.for('state')]();
+            return { askforce: data.askforce, type: data.type, values: data.cm.map(cm => cm?.getValue() || '') };
+        })
+        let state = {
+            environment: {
+                sessionDate,
+                promptSession,
+                history: history_,
+                messages: messages_,
+                askforce: getAskForce(),
+                summary,
+                first
+            },
+            conversationLine
+        }
+        await reqAPI('savestate', { sessionDate, state }) && await refreshList();
+    }
+    function resetTalk() {
+        chatEditor.focus();
+        chatMessages.innerText = '';
+        chatMessages.style.padding = '10px'
+        cline.splice(0, Infinity);
+        currentMode = constants.CURRENT_MODE.WAITING;
+        sessionDate = getCurrentDateTime();
+        promptSession = null;
+        history_ = [];
+        messages_ = [];
+        askforce = '';
+        summary = '';
+        first = true;
+        currdata = null;
+        currentInputViews = null;
+    }
+    //------------------------
     let counter = 0;
     let queue = {};
     let abortedTasks = {};
@@ -31,7 +134,38 @@ window.addEventListener('load', async () => {
         window.electronAPI.send('aborting', { taskId: taskId });
         await promise;
     }
-
+    async function getModelInformation(vendorKey) {
+        if (vendorKey === 'openai') {
+            return {
+                keyname: 'OPENAI_MODEL',
+                modelList: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']
+            };
+        }
+        if (vendorKey === 'anthropic') {
+            return {
+                keyname: 'ANTHROPIC_MODEL',
+                modelList: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307']
+            };
+        }
+        if (vendorKey === 'groq') {
+            return {
+                keyname: 'GROQ_MODEL',
+                modelList: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it']
+            };
+        }
+        if (vendorKey === 'ollama') {
+            return {
+                keyname: 'OLLAMA_MODEL',
+                modelList: await reqAPI('ollamamodellist')
+            };
+        }
+        if (vendorKey === 'gemini') {
+            return {
+                keyname: 'GEMINI_MODEL',
+                modelList: ['gemini-pro']
+            };
+        }
+    }
 
     let reqAPIQueue = [];
     async function reqAPI(mode, arg, indicator = false) {
@@ -44,9 +178,6 @@ window.addEventListener('load', async () => {
             }
         }
         if (indicator) showLoading();
-        if ('savestate' !== mode && 'getstatelist' !== mode) {
-            if (false) console.log(mode, JSON.stringify(arg, undefined, 3));
-        }
         let taskId = getUnique();
         let _resolve;
         let _reject;
@@ -56,7 +187,6 @@ window.addEventListener('load', async () => {
         });
         queue[taskId] = { _resolve, _reject };
         window.electronAPI.send('request', { mode, taskId, arg });
-
         let dt;
         try { dt = await promise; } catch { }
         if (indicator) removeLoading();
@@ -128,7 +258,6 @@ window.addEventListener('load', async () => {
         fnd._resolve(arg.arg);
     });
     //----------------------------------------------------
-    // let resultAssignnewprompt = await reqAPI('assignnewprompt', { request: text, history: history_, promptSession, python_code: currdata.python_code });
 
     const versioninfo = document.querySelector('#versioninfo');
     const poweredby = document.querySelector('#poweredby');
@@ -139,6 +268,9 @@ window.addEventListener('load', async () => {
     const chatMessages = document.querySelector('#chat-messages');
     const talklist = document.querySelector('#talklist');
     const majore = document.querySelector('#majore');
+    let loading = null;
+    let cline = [];
+    let pageMode = 'config';
     function scrollSmoothToBottom(smooth = true) {
         chatMessages.scroll({
             top: chatMessages.scrollHeight * 1,
@@ -147,7 +279,6 @@ window.addEventListener('load', async () => {
     }
     await aiIndicator();
 
-    let loading = null;
     function showLoading() {
         removeLoading();
         let adf = `<span class="loader"></span>`;
@@ -170,13 +301,10 @@ window.addEventListener('load', async () => {
 
     let chatEditor = makeEditor(inputarea, '', "text", !true, sendingPrompt, true);
     // chatEditor.setValue(`raise error don't catch just let it raise error`);
-    let cline = [];
     window.cline = cline;
-    let pageMode = 'config';
     async function sendingPrompt(cm, text) {
         if (loading) return;
         if (!text.trim()) return;
-        // alert(pageMode);
         if (pageMode !== 'talk') await startNewTalk();
         if (text.trim().startsWith('///')) {
             let commandLine = text.trim();
@@ -187,10 +315,8 @@ window.addEventListener('load', async () => {
                     if (args[1] === 'remove_everything_even_history') {
                         await reqAPI('resetconfig');
                         await prepareVENV();
-                        await config();
                     } else {
                         await reqAPI('disableVariable', { value: args[1] });
-                        await config();
                     }
                 }
             }
@@ -200,63 +326,76 @@ window.addEventListener('load', async () => {
         showIndicator(null);
         cm.setValue('');
         removeTools();
-        if (true) {
-            const line = createConversationLine({ text: text, type: 1, parent: chatMessages })
-            cline.push(line);
-            scrollSmoothToBottom();
-            if (currentMode === 'waiting') {
-                try {
-                    await requestAI(text);
-                } catch (e) {
-                    if (e === 10001) {
-                        // console.log('렌더러에 의한 중단')
-                        /* 렌더러에 의한 중단*/
-                    }
-                }
-            }
-            else if (currentMode === 'choosing') {
-                currentInputViews.remove();
-                let resultAssignnewprompt = await reqAPI('assignnewprompt', { request: text, history: history_, promptSession, python_code: currdata.python_code });
-                promptSession = resultAssignnewprompt.promptSession
-                history_ = resultAssignnewprompt.history
-                setAskForce(resultAssignnewprompt.askforce)
-                await saveState();
-                try {
-                    await requestAI(text);
-                } catch (e) {
-                    // console.log('abort', e);
-                    if (e === 10001) {
-                        // console.log('렌더러에 의한 중단');
-                        /* 렌더러에 의한 중단*/
-                    }
-                }
-            } else if (currentMode === 'run_code_causes_error') {
-                currentInputViews.remove();
-                setAskForce(currentMode)
-                let resultErrorprompthandle = await reqAPI('errorprompthandle', { request: text, history: history_, askforce: getAskForce(), promptSession });
-                history_ = resultErrorprompthandle.history
-                setAskForce('');
-                promptSession = resultErrorprompthandle.promptSession
-                await saveState();
-                try {
-                    await requestAI(text);
-                } catch (e) {
-                    // console.log('abort', e);
-                    if (e === 10001) {
-                        // console.log('렌더러에 의한 중단');
-                        /* 렌더러에 의한 중단*/
-                    }
-                }
-            }
+        cline.push(createConversationLine({ text: text, type: 1, parent: chatMessages }));
+        scrollSmoothToBottom();
+        if (currentMode === constants.CURRENT_MODE.WAITING) {
+            try { await requestAI(text); } catch { }
+        }
+        else if (currentMode === constants.CURRENT_MODE.CHOOSING) {
+            currentInputViews?.remove();
+            let resultAssignnewprompt = await reqAPI('assignnewprompt', { request: text, history: history_, promptSession, python_code: currdata.python_code });
+            promptSession = resultAssignnewprompt.promptSession
+            history_ = resultAssignnewprompt.history
+            setAskForce(resultAssignnewprompt.askforce)
+            await saveState();
+            try { await requestAI(text); } catch { }
+        } else if (currentMode === constants.CURRENT_MODE.ERROR) {
+            currentInputViews?.remove();
+            setAskForce(currentMode)
+            let resultErrorprompthandle = await reqAPI('errorprompthandle', { request: text, history: history_, askforce: getAskForce(), promptSession });
+            history_ = resultErrorprompthandle.history
+            setAskForce('');
+            promptSession = resultErrorprompthandle.promptSession
+            await saveState();
+            try { await requestAI(text); } catch { }
         }
     }
 
-    let first = true;
-    let askforce = '';
-    let history_ = [];
-    let messages_ = [];
-    let summary = '';
-    let promptSession;
+
+    async function runPythonCode({ python_code, parent }) {
+        python_code = removeDescriptionFromCode(python_code)
+        const neededPackageListOfObject = await reqAPI('neededpackages', { python_code });
+        if (neededPackageListOfObject) {
+            const chosen = await createConversationLine({ text: JSON.stringify(neededPackageListOfObject), type: 6, askforce: getAskForce(), parent });
+            for (let i = 0; i < chosen.length; i++) {
+                await reqAPI('installpackage', { name: chosen[i] });
+            }
+        }
+        const result = await reqAPI('shell_exec', { "code": python_code, "b64": false }, true);
+        if (!result) {
+            //aborting
+            return;
+        }
+        const code = result.code
+        const stdout = result.stdout
+        const stderr = result.stderr
+        const reviewMode = await performResultReview();
+        const assignedResult = await reqAPI('resultassigning', { python_code, result, messages_: messages_, history: history_, reviewMode });
+        setAskForce(assignedResult.askforce);
+        if (assignedResult?.history?.constructor !== Array) await assertion(`raise 1`);
+        if (assignedResult?.messages?.constructor !== Array) await assertion(`raise 2`);
+        if (reviewMode && assignedResult.askforce === constants.ASKFORCE.ASKOPINION) 1; // 실행성공, 리뷰필요
+        if (!reviewMode && assignedResult.askforce === '') 1; // 실행성공, 리뷰불필요
+        if (assignedResult.askforce === constants.ASKFORCE.ERROR) 1; // 실행실패
+
+        history_ = assignedResult.history;
+        messages_ = assignedResult.messages;
+        const resultContainer = createConversationLine({ text: JSON.stringify({ stdout, stderr }), type: 3, askforce: getAskForce(), parent });
+        cline.push(resultContainer);
+        await saveState();
+        if (getAskForce() === "") {
+            messages_.push(...history_, { role: 'assistant', content: 'I will refer to it in future work.' })
+            if (!validateMessageStructure(messages_)) await assertion(`raise 5`);
+            history_.splice(0, Infinity);
+            return;
+        }
+        if (getAskForce() === constants.ASKFORCE.ASKOPINION) {
+            if (promptSession?.prompt === undefined) await assertion(`raise 6`);
+            try { await requestAI(promptSession.prompt); } catch { }
+            return;
+        }
+        if (getAskForce() === constants.ASKFORCE.ERROR) 1;
+    }
     async function getmodelnamed() {
         const vendorName = await reqAPI('getconfig', { key: 'USE_LLM' });
         let modelName = '';
@@ -275,36 +414,16 @@ window.addEventListener('load', async () => {
             `</div>`,
         ].join('');
         if (!load) return;
-        // return;
-        const vendorName = await reqAPI('getconfig', { key: 'USE_LLM' });
-        let modelName = '';
-        if (vendorName === 'openai') modelName = await reqAPI('getconfig', { key: 'OPENAI_MODEL' });//kn = ('OPENAI_MODEL');
-        if (vendorName === 'groq') modelName = await reqAPI('getconfig', { key: 'GROQ_MODEL' });//kn = ('GROQ_MODEL');
-        if (vendorName === 'gemini') modelName = 'gemini-pro';
-        if (vendorName === 'anthropic') modelName = await reqAPI('getconfig', { key: 'ANTHROPIC_MODEL' });//kn = ('ANTHROPIC_MODEL');
-        if (vendorName === 'ollama') modelName = await reqAPI('getconfig', { key: 'OLLAMA_MODEL' });//kn = ('OLLAMA_MODEL');
+        const modelName = await getmodelnamed();
+        if (!modelName) return;
         poweredby.style.cursor = 'pointer';
         poweredby.innerHTML = [
             `<div style="text-align:center;padding:5px;">`,
             `<span style="opacity:0.5;font-size:0.8em;">Powered by </span>`,
-            `<span style="font-size:0.8em;">${modelName}</span>`,
+            `<span style="font-size:0.8em;">${modelName ? modelName : '&nbsp;'}</span>`,
             `</div>`,
         ].join('');
-        [...poweredby.children].forEach(e => e.addEventListener('click', async e => {
-            await configPage();
-            // await resetAllModel();
-            // await resetVendor();
-            // await config();
-        }));
-    }
-    function seedata() {
-
-        // console.log('--------------------------');
-        // console.log('메시지');
-        // console.log(JSON.stringify(messages_, undefined, 3));
-        // console.log('히스토리');
-        // console.log(JSON.stringify(history_, undefined, 3));
-        // console.log('--------------------------');
+        [...poweredby.children].forEach(e => e.addEventListener('click', configPage));
     }
     function makeEditor(codebox, code, mode, readOnly = false, nonchat = null, nogutter = false) {
         const codeArea = document.createElement('textarea');
@@ -336,42 +455,36 @@ window.addEventListener('load', async () => {
     }
 
     async function requestAI(prompt) {
-        let resultAireq = await reqAPI('aireq', { prompt, askforce: getAskForce(), summary, messages_, history: history_, first }, true);
-        await resultProcedure(resultAireq)
+        const payload = { prompt, askforce: getAskForce(), summary, messages_, history: history_, first };
+        const procResult = await reqAPI('aireq', payload, true);
+        if (!procResult) throw 10000;
+        if (procResult.abortedByRenderer) throw 10001;
+        if (procResult.error) throw 10002;
+        if (procResult.abortion) throw 10003;
+        first = false;
+        currdata = procResult;
+        promptSession = procResult.promptSession;
+        summary = procResult.summary;
+        history_ = procResult.history;
+        messages_ = procResult.messages_;
+        setAskForce(procResult.askforce)
+        const parent = chatMessages;
+        if (procResult.correct_code) {
+            const codebox = createConversationLine({ text: procResult.python_code, type: 5, parent })
+            cline.push(codebox);
+            currentMode = constants.CURRENT_MODE.CHOOSING;
+            currentInputViews = codebox[Symbol.for('choosebox')];
+        } else {
+            currentMode = constants.CURRENT_MODE.WAITING;
+            let explain = createConversationLine({ text: procResult.raw, type: 4, parent });
+            cline.push(explain);
+        }
+        scrollSmoothToBottom();
         await saveState();
     }
-    function getCurrentDateTime() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
-        return `${year}${month}${day}_${hours}${minutes}${seconds}_${milliseconds}`;
-    }
+
     let sessionDate = getCurrentDateTime();
-    async function saveState() {
-        const conversationLine = cline.map(line => {
-            let data = line[Symbol.for('state')]();
-            return { askforce: data.askforce, type: data.type, values: data.cm.map(cm => cm?.getValue() || '') };
-        })
-        // let sessionDate = getCurrentDateTime();
-        let state = {
-            environment: {
-                sessionDate,
-                promptSession,
-                history: history_,
-                messages: messages_,
-                askforce: getAskForce(),
-                summary,
-                first
-            },
-            conversationLine
-        }
-        await reqAPI('savestate', { sessionDate, state }) && await refreshList();
-    }
+
     function makeButton(name) {
         const execode = document.createElement('button');
         execode.innerText = name;
@@ -384,45 +497,6 @@ window.addEventListener('load', async () => {
     }
 
 
-    async function resultProcedure(procResult) {
-        if (!procResult) throw 10000;
-        if (procResult.abortedByRenderer) throw 10001;
-        if (procResult.error) throw 10002;
-        if (procResult.abortion) throw 10003;
-        first = false;
-        currdata = procResult;
-        promptSession = procResult.promptSession;
-        summary = procResult.summary;
-        history_ = procResult.history;
-        messages_ = procResult.messages_;
-        setAskForce(procResult.askforce)
-        await saveState();
-        seedata()
-        if (procResult.correct_code) {
-            if (false) procResult.python_code = [`# GENERATED CODE`,
-                `# This code is proposed for mission execution`,
-                // `# This code will be run in ${process.cwd()}`,
-                // `# This code file is actually located at ${code_saved_path.split('/').join(isWindows() ? '\\' : '/')} and you can review the code by opening this file.`,
-                `# Additional code included at the top of this file ensures smooth operation. For a more detailed review, it is recommended to open the actual file.`,
-                `# Please review the code carefully as it may cause unintended system behavior`,
-                ``,
-                `${procResult.python_code}`,
-            ].join('\n');
-
-            const codebox = createConversationLine({ text: procResult.python_code, type: 5, parent: chatMessages })
-            cline.push(codebox);
-            scrollSmoothToBottom();
-            currentMode = 'choosing';
-            currentInputViews = codebox[Symbol.for('choosebox')];
-        } else {
-            currentMode = 'waiting';
-            let explain = createConversationLine({ text: procResult.raw, type: 4, parent: chatMessages });
-            cline.push(explain);
-            scrollSmoothToBottom();
-
-        }
-
-    }
     function removeTools() {
         const chooseboxSymbol = Symbol.for('choosebox');
         cline.forEach(item => item[chooseboxSymbol]?.remove());
@@ -440,18 +514,6 @@ window.addEventListener('load', async () => {
             if (type !== 2) conversationLine.classList.add('other')
         }
         if (type !== 2) conversationLine.classList.add('message')
-
-
-
-        // if (type === 4 || type === 1 || type === 3 || type === 5 || type === 6 || type === 2) { } else {
-        //     if (text) {
-        //         if (typeof text === 'string') {
-        //             conversationLine.innerText = text;
-        //         } else {
-        //             conversationLine.appendChild(text);
-        //         }
-        //     }
-        // }
         if (type === 1) {
             parent.appendChild(conversationLine);
             const cm = makeEditor(conversationLine, text, "text", true, null, true);
@@ -468,10 +530,6 @@ window.addEventListener('load', async () => {
                     conversationLine.appendChild(text);
                 }
             }
-            // const cm = makeEditor(conversationLine, text, "text", true, null, true);
-            // conversationLine[Symbol.for('state')] = () => {
-            //     return { type, cm: [cm] };
-            // };
         }
         if (type === 3) {
             parent.appendChild(conversationLine);
@@ -505,23 +563,14 @@ window.addEventListener('load', async () => {
                 return { type, cm: [editors.stdout, editors.stderr], askforce };
             };
             if (!restore || last) {
-                if (askforce === "run_code_causes_error") {
-                    currentMode = askforce;
+                if (askforce === constants.ASKFORCE.ERROR) {
+                    currentMode = constants.CURRENT_MODE.ERROR;
                     const execode = makeButton('Create of a revised code');
                     execode.addEventListener('click', async e => {
                         chatEditor.focus();
                         toolBtn.remove();
                         setAskForce('');
-                        await saveState();
-                        try {
-                            await requestAI(promptSession.prompt);
-                        } catch (e) {
-                            // console.log('abort', e);
-                            if (e === 10001) {
-                                // console.log('렌더러에 의한 중단');
-                                /* 렌더러에 의한 중단*/
-                            }
-                        }
+                        try { await requestAI(promptSession.prompt); } catch { }
                         return;
                     });
                     toolBtn.appendChild(execode);
@@ -532,20 +581,14 @@ window.addEventListener('load', async () => {
         if (type === 4) {
             parent.appendChild(conversationLine);
             const cm = makeEditor(conversationLine, text, "text", true);
-            conversationLine[Symbol.for('state')] = () => {
-                return { type, cm: [cm] };
-            };
+            conversationLine[Symbol.for('state')] = () => { return { type, cm: [cm] }; };
         }
         if (type === 6) {
             parent.appendChild(conversationLine);
-            // let resolver;
             let modulelistOb = JSON.parse(text);
             conversationLine.innerText = '';
             let chosenList = {};
-
-
             const title = document.createElement('div');
-            // title.style.color = 'rgba(255,255,255,0.4)';
             title.style.display = 'inline-block'
             title.innerText = `Missing Module Installataion`;
             title.style.marginBottom = '5px';
@@ -554,9 +597,6 @@ window.addEventListener('load', async () => {
             title.style.paddingLeft = '10px';
             title.style.paddingRight = '10px';
             conversationLine.appendChild(title);
-
-
-            //font-family:monospace;opacity:0.7;font-size:0.85em
             const message = document.createElement('div');
             message.style.opacity = '0.7';
             message.style.display = 'inline-block'
@@ -567,7 +607,6 @@ window.addEventListener('load', async () => {
             message.style.paddingRight = '10px';
             message.style.paddingBottom = '5px';
             conversationLine.appendChild(message);
-
             const toolBtnd = document.createElement('button');
             Object.keys(modulelistOb).forEach(name => {
 
@@ -603,9 +642,6 @@ window.addEventListener('load', async () => {
             toolBtn.style.padding = '0px'
             toolBtn.innerText = '';
             conversationLine.appendChild(toolBtn);
-
-
-
             toolBtnd.style.color = 'rgba(255,255,255,0.7';
             toolBtnd.style.display = 'inline-block'
             toolBtnd.style.cursor = 'pointer'
@@ -622,23 +658,12 @@ window.addEventListener('load', async () => {
             })
             scrollSmoothToBottom();
             let resolver;
-            let promise = new Promise(resolve => {
-                resolver = resolve;
-            });
+            let promise = new Promise(resolve => { resolver = resolve; });
             conversationLine[Symbol.for('choosebox')] = toolBtn;
             return promise;
-            // return new Promise(resolve => {
-            //     // resolver = resolve;
-            // })
-
-            // const cm = makeEditor(conversationLine, text, "text", true);
-            // conversationLine[Symbol.for('state')] = () => {
-            //     return { type, cm: [cm] };
-            // };
         }
         if (type === 5) {
             parent.appendChild(conversationLine);
-
             const notifymessage = document.createElement('div');
             notifymessage.style.display = 'block';
             notifymessage.style.width = '100%'
@@ -652,87 +677,24 @@ window.addEventListener('load', async () => {
                 `<div style="text-align:left;font-family:monospace;opacity:0.7;font-size:0.85em">You can modify this code before execute</div>`,
             ].join('');
             notifymessage.innerHTML = msgd;
-
-
             const choosebox = document.createElement('div');
             choosebox.style.display = 'block';
             choosebox.style.width = '100%'
             choosebox.style.textAlign = 'right'
             conversationLine[Symbol.for('choosebox')] = choosebox;
-
-
-            // (!restore || last)
-            // (restore&&!last)
-
-
             conversationLine.appendChild(notifymessage);
             const cm = makeEditor(conversationLine, text, "python", (restore && !last))
             conversationLine.appendChild(choosebox);
             conversationLine[Symbol.for('state')] = () => {
                 return { type, cm: [cm] };
             };
-
             if (!restore || last) {
                 const execode = makeButton('Execute Code');
                 choosebox.appendChild(execode);
                 execode.addEventListener('click', async e => {
                     chatEditor.focus();
                     choosebox.remove();
-                    let codeBody = (cm.getValue()?.split('\n'))?.filter(line => line?.trim()[0] !== '#').join('\n')
-                    let neededPackageListOfObject = await reqAPI('neededpackages', { python_code: codeBody });
-                    if (neededPackageListOfObject) {
-                        let packageList = Object.keys(neededPackageListOfObject);
-
-                        const chosen = await createConversationLine({ text: JSON.stringify(neededPackageListOfObject), type: 6, askforce: getAskForce(), parent: parent });
-                        // console.log(chosen);
-                        // cline.push(resultContainer);
-
-                        if (true) {
-                            for (let i = 0; i < chosen.length; i++) {
-                                let installResult = await reqAPI('installpackage', { name: chosen[i] });
-                                // console.log('install', chosen[i], installResult)
-                            }
-                        }
-                    }
-                    let result = await reqAPI('shell_exec', { "code": codeBody, "b64": false }, true);
-                    let code = result.code
-                    let stdout = result.stdout
-                    let stderr = result.stderr
-                    let reviewMode = await getUseReview() === 'YES';
-                    let resggd = await reqAPI('resultassigning', { python_code: codeBody, result, messages_: messages_, history: history_, reviewMode });
-                    setAskForce(resggd.askforce);
-
-                    history_ = resggd.history;
-                    messages_ = resggd.messages;
-                    const resultContainer = createConversationLine({ text: JSON.stringify({ stdout, stderr }), type: 3, askforce: getAskForce(), parent: parent });
-                    cline.push(resultContainer);
-                    await saveState();
-                    if (getAskForce() === "") {
-                        messages_.push(...history_, { role: 'assistant', content: 'I will refer to it in future work.' })
-                        history_.splice(0, Infinity);
-                        // console.log(2, messages_)
-                        // console.log(1, history_)
-                        return;
-                    }
-                    if (getAskForce() === "ask_opinion") {
-                        try {
-                            await requestAI(promptSession.prompt);
-                        } catch (e) {
-                            // console.log('abort', e);
-                            if (e === 10001) {
-                                // console.log('렌더러에 의한 중단');
-                                /* 렌더러에 의한 중단*/
-                            }
-                        }
-                        // if (await getUseReview() === 'YES') {
-                        // } else {
-                        //     setAskForce('');
-                        //     console.log(2, messages_)
-                        //     console.log(1, history_)
-                        // }
-                        return;
-                    }
-
+                    await runPythonCode({ python_code: cm.getValue(), parent });
                 });
             }
             if (!restore || last) {
@@ -743,16 +705,7 @@ window.addEventListener('load', async () => {
                     conversationLine.remove();
                     cline.pop();
                     setAskForce('re-generate');
-                    await saveState();
-                    try {
-                        await requestAI(promptSession.prompt);
-                    } catch (e) {
-                        // console.log('abort', e);
-                        if (e === 10001) {
-                            // console.log('렌더러에 의한 중단');
-                            /* 렌더러에 의한 중단*/
-                        }
-                    }
+                    try { await requestAI(promptSession.prompt); } catch { }
                 });
 
                 choosebox.appendChild(execode);
@@ -768,95 +721,11 @@ window.addEventListener('load', async () => {
     function getAskForce() {
         return askforce;
     }
-
-    async function resetVendor() {
-        await reqAPI('disableVariable', { value: 'USE_LLM' });
-    }
-    async function chooseModel() {
-        const USE_LLM = await reqAPI('getconfig', { key: 'USE_LLM' });
-        let kn = modelConfigurationKey(USE_LLM);
-        if (kn) {
-            await reqAPI('disableVariable', { value: kn });
-            // await config();
-        }
-    }
-    async function resetAllModel() {
-        let list = [];
-        list.push('OPENAI_MODEL');
-        list.push('GROQ_MODEL');
-        list.push('ANTHROPIC_MODEL');
-        list.push('OLLAMA_MODEL');
-        for (let i = 0; i < list.length; i++) {
-            await reqAPI('disableVariable', { value: list[i] });
-        }
-    }
-    function modelConfigurationKey(aiVendor) {
-        if (!aiVendor) aiVendor = '';
-        aiVendor = aiVendor.toLowerCase();
-        let kn = '';
-        if (aiVendor === 'openai') kn = ('OPENAI_MODEL');
-        if (aiVendor === 'groq') kn = ('GROQ_MODEL');
-        if (aiVendor === 'gemini') kn = '';
-        if (aiVendor === 'anthropic') kn = ('ANTHROPIC_MODEL');
-        if (aiVendor === 'ollama') kn = ('OLLAMA_MODEL');
-        return kn;
-    }
-    // majore
-
     {
         let menu = [
-            // {
-            //     name: 'AI 제공사 선택', async trg() {
-            //         await resetAllModel();
-            //         await resetVendor();
-            //         await config();
-            //     }
-            // },
-            // {
-            //     name: 'AI 모델 선택', async trg() {
-            //         await resetAllModel();
-            //         await config();
-            //     }
-            // },
             {
-                name: 'AI 설정', async trg() {
-                    await configPage();
-                    return;
-                    let apiasking = [
-                        { llmname: 'openai', key: 'OPENAI_API_KEY', title: `What is your OpenAI API key for accessing OpenAI services?` },
-                        { llmname: 'groq', key: 'GROQ_API_KEY', title: `What is your GROQ API key for accessing GROQ services?` },
-                        { llmname: 'anthropic', key: 'ANTHROPIC_API_KEY', title: `What is your Anthropic API key for accessing Anthropic services?` },
-                        { llmname: 'gemini', key: 'GOOGLE_API_KEY', title: `What is your Gemini API key for accessing Gemini services?` },
-                    ];
-                    const use_llm = await reqAPI('getconfig', { key: 'USE_LLM' });
-                    await new Promise(r => requestAnimationFrame(r));
-                    await new Promise(r => requestAnimationFrame(r));
-                    if (!confirm(`현재 설정된 ${use_llm}의 API키를 제거하고 재설정하시겠습니까?`)) {
-                        return;
-                    }
-                    for (let i = 0; i < apiasking.length; i++) {
-                        const { key, title, llmname } = apiasking[i];
-                        if (llmname === use_llm) {
-                            await reqAPI('disableVariable', { value: key });
-                        }
-                    }
-                    await config();
-                }
+                name: 'AI 설정', async trg() { await configPage(); }
             },
-            // {
-            //     name: '모든 설정 초기화', async trg() {
-            //         if (confirm('모든 설정을 초기화 하시겠습니까? 대화기록도 모두 제거됩니다.')) {
-            //             await abortAllTask();
-            //             await reqAPI('resetconfig');
-            //             await prepareVENV();
-            //             await config();
-            //             // await refreshList();
-            //             let els = await refreshList();
-            //             if (els[0]) els[0]?.click()
-
-            //         }
-            //     }
-            // },
             {
                 name: '코드깎는노인 유튜브', async trg() {
                     await reqAPI('open', { value: 'https://www.youtube.com/@codeteller' });
@@ -880,33 +749,18 @@ window.addEventListener('load', async () => {
             })
         })
     }
+
     async function startNewTalk(file) {
         await abortAllTask();
-        if (false && reqAPIQueue.length) {
-            alert('현재 진행중인 요청이 완료된 후 다시 시도해주세요')
-            return;
-        }
         if (!await getmodelnamed()) {
             await configPage();
             return;
         }
         pageMode = 'talk';
-        chatEditor.focus();
-        chatMessages.innerText = '';
-        chatMessages.style.padding = '10px'
-        cline.splice(0, Infinity);
-        if (!file) {
-            sessionDate = getCurrentDateTime();
-            promptSession = null;
-            history_ = [];
-            messages_ = [];
-            askforce = '';
-            summary = '';
-            first = true;
-            return;
-        }
-        let stateData = await reqAPI('getstate', { filename: file });
-        let parsed = JSON.parse(stateData);
+        resetTalk();
+        if (!file) return;
+        const stateData = await reqAPI('getstate', { filename: file });
+        const parsed = JSON.parse(stateData);
         sessionDate = parsed.environment.sessionDate;
         promptSession = parsed.environment.promptSession;
         history_ = parsed.environment.history;
@@ -917,12 +771,19 @@ window.addEventListener('load', async () => {
         for (let i = 0; i < parsed.conversationLine.length; i++) {
             let lineinfo = parsed.conversationLine[i];
             let text = lineinfo.values[0];
-            if (lineinfo.type === 3) {
-                text = JSON.stringify({ stdout: lineinfo.values[0], stderr: lineinfo.values[1] })
-            }
-            let last = parsed.conversationLine.length - 1 === i;
-            const resultContainer = createConversationLine({ text: text, type: lineinfo.type, parent: chatMessages, askforce: lineinfo.askforce, restore: true, last });
-            cline.push(resultContainer);
+            if (lineinfo.type === 3) text = JSON.stringify({
+                stdout: lineinfo.values[0],
+                stderr: lineinfo.values[1]
+            })
+            const isLastConversation = parsed.conversationLine.length - 1 === i;
+            cline.push(createConversationLine({
+                text: text,
+                type: lineinfo.type,
+                parent: chatMessages,
+                askforce: lineinfo.askforce,
+                restore: true,
+                last: isLastConversation
+            }));
         }
         scrollSmoothToBottom(false);
     }
@@ -1051,123 +912,6 @@ window.addEventListener('load', async () => {
 
 
 
-    async function config() {
-        return;
-        let container = document.createElement('div');
-        container.style.width = '100%';
-        container.style.height = '100%';
-        container.style.position = 'fixed';
-        container.style.top = '0';
-        container.style.left = '0';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.justifyContent = 'center';
-        container.style.alignItems = 'center';
-        container.style.backgroundColor = '#f0f0f0';
-        container.style.opacity = '0';
-
-        // 타이틀 생성
-        let title = document.createElement('h1');
-        title.innerText = 'AIEXE';
-        title.style.fontSize = '5em';
-        title.style.marginBottom = '20px';
-        title.style.opacity = '1';  // 초기 상태를 투명하게 설정
-
-        // 컨테이너에 타이틀 추가
-        container.insertBefore(title, container.firstChild);
-
-        // 컨테이너를 body에 추가
-        document.body.appendChild(container);
-
-        // 옵션 버튼들 생성
-
-        {
-            const use_llm = await reqAPI('getconfig', { key: 'USE_LLM' });
-            if (!use_llm) {
-                let title = 'Which LLM vendor do you prefer?';
-                let options = ['OpenAI', 'Anthropic', 'Ollama', 'Gemini', 'Groq'];
-                container.style.opacity = '1';
-                const chosen = await selector(title, options, container);
-                await reqAPI('setconfig', { key: 'USE_LLM', value: chosen.toLowerCase() });
-            }
-        }
-        {
-            let apiasking = [
-                { llmname: 'openai', key: 'OPENAI_API_KEY', title: `What is your OpenAI API key for accessing OpenAI services?` },
-                { llmname: 'groq', key: 'GROQ_API_KEY', title: `What is your GROQ API key for accessing GROQ services?` },
-                { llmname: 'anthropic', key: 'ANTHROPIC_API_KEY', title: `What is your Anthropic API key for accessing Anthropic services?` },
-                { llmname: 'gemini', key: 'GOOGLE_API_KEY', title: `What is your Gemini API key for accessing Gemini services?` },
-            ];
-            const use_llm = await reqAPI('getconfig', { key: 'USE_LLM' });
-            for (let i = 0; i < apiasking.length; i++) {
-                const { key, title, llmname } = apiasking[i];
-                let apiKeyString = await reqAPI('getconfig', { key: key });
-                if (!apiKeyString) apiKeyString = '';
-                if (!apiKeyString && use_llm === llmname) {
-                    container.style.opacity = '1';
-                    const chosen = await selector(title, apiKeyString, container);
-                    await reqAPI('setconfig', { key: key, value: chosen });
-                }
-            }
-        }
-        {
-            const use_llm = await reqAPI('getconfig', { key: 'USE_LLM' });
-            const OPENAI_MODEL = await reqAPI('getconfig', { key: 'OPENAI_MODEL' });
-            if (!OPENAI_MODEL && use_llm === 'openai') {
-                const options = ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
-                let title = 'Which OpenAI model do you want to use for your queries?';
-                container.style.opacity = '1';
-                const chosen = await selector(title, options, container);
-                await reqAPI('setconfig', { key: 'OPENAI_MODEL', value: chosen });
-            }
-        }
-        {
-            const use_llm = await reqAPI('getconfig', { key: 'USE_LLM' });
-            const ANTHROPIC_MODEL = await reqAPI('getconfig', { key: 'ANTHROPIC_MODEL' });
-            if (!ANTHROPIC_MODEL && use_llm === 'anthropic') {
-                const options = ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'];
-                let title = 'Which Anthropic model do you want to use for your queries?';
-                container.style.opacity = '1';
-                const chosen = await selector(title, options, container);
-                await reqAPI('setconfig', { key: 'ANTHROPIC_MODEL', value: chosen });
-            }
-        }
-        {
-            const use_llm = await reqAPI('getconfig', { key: 'USE_LLM' });
-            const GROQ_MODEL = await reqAPI('getconfig', { key: 'GROQ_MODEL' });
-            if (!GROQ_MODEL && use_llm === 'groq') {
-                const options = ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it'];
-                let title = 'Which GROQ model do you want to use for your queries?';
-                container.style.opacity = '1';
-                const chosen = await selector(title, options, container);
-                await reqAPI('setconfig', { key: 'GROQ_MODEL', value: chosen });
-            }
-        }
-        {
-            //ollamamodellist
-            const use_llm = await reqAPI('getconfig', { key: 'USE_LLM' });
-            const OLLAMA_MODEL = await reqAPI('getconfig', { key: 'OLLAMA_MODEL' });
-            if (!OLLAMA_MODEL && use_llm === 'ollama') {
-                const options = await reqAPI('ollamamodellist');
-                let title = 'Which Ollama model do you want to use for your queries?';
-                container.style.opacity = '1';
-                const chosen = await selector(title, options, container);
-                await reqAPI('setconfig', { key: 'OLLAMA_MODEL', value: chosen });
-            }
-        }
-        if (false) {
-            const UPDATE_CHECK = await reqAPI('getconfig', { key: 'UPDATE_CHECK' });
-            if (!UPDATE_CHECK) {
-                let title = 'Do you want to check for new updates every time you run the app?';
-                let options = ['YES', 'NO'];
-                const chosen = await selector(title, options, container);
-                await reqAPI('setconfig', { key: 'UPDATE_CHECK', value: chosen.toLowerCase() });
-            }
-        }
-        container.remove();
-        await aiIndicator(true);
-
-    }
 
 
 
@@ -1183,67 +927,12 @@ window.addEventListener('load', async () => {
 
 
 
-    async function selector(title, options, container) {
-
-        let subtitle = document.createElement('h1');
-        subtitle.innerText = title;
-        subtitle.style.fontSize = '2em';
-        subtitle.style.margin = '20px';
-        subtitle.style.opacity = '1';
-        subtitle.style.color = 'rgba(0,0,0,0.5)';
-        container.appendChild(subtitle);
-
-        let resolver;
-        let promise = new Promise(resolve => resolver = resolve);
-
-        let btns = [];
-        if (options?.constructor === Array) {
-            options.forEach(optionText => {
-                let button = document.createElement('button');
-                button.innerText = optionText;
-                button.style.fontSize = '1.5em';
-                button.style.margin = '10px';
-                button.style.padding = '10px 20px';
-                button.style.border = '0px';
-                button.style.cursor = 'pointer';
-                container.appendChild(button);
-                button.addEventListener('click', e => { resolver(optionText); });
-                btns.push(button)
-            });
-        } else {
-            let button = document.createElement('input');
-            if (options) button.value = options;
-            button.style.fontSize = '1.5em';
-            button.style.margin = '10px';
-            button.style.padding = '10px 20px';
-            button.style.border = '0px';
-            button.style.cursor = 'pointer';
-            button.style.outlineStyle = 'none';
-            button.style.width = '60%';
-            button.style.textAlign = 'center';
-            container.appendChild(button);
-            button.addEventListener('keypress', e => {
-                if (e.key === 'Enter') {
-                    resolver(button.value);
-                }
-            });
-            button.focus();
-            btns.push(button)
-        }
-        let chosen = await promise;
-        while (btns.length) {
-            btns.splice(0, 1)[0].remove();
-        }
-        subtitle.remove();
-        return chosen;
-    }
 
 
 
 
-    let els = await refreshList();
-    await startNewTalk()
-    // if (els[0]) els[0]?.click()
+
+
 
 
     async function refreshVersionInfo() {
@@ -1256,6 +945,7 @@ window.addEventListener('load', async () => {
             `${vinfo.client !== vinfo.latest ? '<div style="opacity: 0;font-size: 0.7em;color:yellow;font-weight:bold;cursor:pointer;" id="newavail">New Version Available</div>' : ''}`,
         ].join('');
         vinfo = await reqAPI('versioninfo');
+        if (!vinfo.latest) return;
         versioninfo.innerHTML = [
             `${vinfo.client ? `<div style="font-size: 0.7em;opacity: 0.3;">${vinfo.client}</div>` : ''}`,
             `${vinfo.client !== vinfo.latest ? '<div style="font-size: 0.7em;color:yellow;font-weight:bold;cursor:pointer;" id="newavail">New Version Available</div>' : ''}`,
@@ -1264,66 +954,17 @@ window.addEventListener('load', async () => {
             await reqAPI('open', { value: 'https://cokac.com/list/announcement/6' })
         })
     }
-    await refreshVersionInfo();
-    await prepareVENV();
-    await config();
-    await aiIndicator(true);
-    await showMainUI();
-    async function showMainUI() {
-        [...document.body.children].forEach(el => {
-            el.style.opacity = '1';
-        });
-    }
-
-
-    async function getUseReview() {
-        return await reqAPI('getconfig', { key: 'USE_REVIEW' });
-    }
+    async function showMainUI() { [...document.body.children].forEach(el => el.style.opacity = '1'); }
+    async function getUseReview() { return await reqAPI('getconfig', { key: 'USE_REVIEW' }); }
+    async function performResultReview() { return (await getUseReview()) === 'YES'; }
     async function configPage() {
         await abortAllTask();
-
         if (!await getUseReview()) await reqAPI('setconfig', { key: 'USE_REVIEW', value: 'YES' });
-
-        if (false && reqAPIQueue.length) {
-            alert('현재 진행중인 요청이 완료된 후 다시 시도해주세요')
-            return;
-        }
         pageMode = 'config';
         const configContainer = chatMessages;
         configContainer.innerText = '';
         {
-            async function getModelInformation(vendorKey) {
-                if (vendorKey === 'openai') {
-                    return {
-                        keyname: 'OPENAI_MODEL',
-                        modelList: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']
-                    };
-                }
-                if (vendorKey === 'anthropic') {
-                    return {
-                        keyname: 'ANTHROPIC_MODEL',
-                        modelList: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307']
-                    };
-                }
-                if (vendorKey === 'groq') {
-                    return {
-                        keyname: 'GROQ_MODEL',
-                        modelList: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it']
-                    };
-                }
-                if (vendorKey === 'ollama') {
-                    return {
-                        keyname: 'OLLAMA_MODEL',
-                        modelList: await reqAPI('ollamamodellist')
-                    };
-                }
-                if (vendorKey === 'gemini') {
-                    return {
-                        keyname: 'GEMINI_MODEL',
-                        modelList: ['gemini-pro']
-                    };
-                }
-            }
+
             async function makeConfigLine(configContainer, { title, description, type, list, keyname, placeholder, vendorKey, handleRadioChange }) {
                 const lineContainer = document.createElement('div');
                 lineContainer.className = 'aiexe_configuration_config-line';
@@ -1404,28 +1045,7 @@ window.addEventListener('load', async () => {
                 title: 'AI Vendor',
                 type: 'radio',
                 keyname: 'USE_LLM',
-                list: [
-                    {
-                        displayName: 'OpenAI', // API Key required
-                        keyAsValue: 'openai',
-                    },
-                    {
-                        displayName: 'Anthropic', // API Key required
-                        keyAsValue: 'anthropic',
-                    },
-                    {
-                        displayName: 'Ollama', // No need API Key
-                        keyAsValue: 'ollama',
-                    },
-                    {
-                        displayName: 'Gemini', // API Key required, as GOOGLE
-                        keyAsValue: 'gemini',
-                    },
-                    {
-                        displayName: 'Groq', // API Key required
-                        keyAsValue: 'groq',
-                    },
-                ],
+                list: vendorList,
                 defaultValue: 'openai',
                 async handleRadioChange(selectedVendor, config_key) {
                     modelContainer.innerText = '';
@@ -1521,7 +1141,6 @@ window.addEventListener('load', async () => {
                     await abortAllTask();
                     await reqAPI('resetconfig');
                     await prepareVENV();
-                    await config();
                     // await refreshList();
                     let els = await refreshList();
                     if (els[0]) els[0]?.click()
@@ -1546,4 +1165,11 @@ window.addEventListener('load', async () => {
 
         }
     }
+
+    await refreshList();
+    await startNewTalk()
+    await refreshVersionInfo();
+    await prepareVENV();
+    await aiIndicator(true);
+    await showMainUI();
 });
