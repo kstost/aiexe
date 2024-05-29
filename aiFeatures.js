@@ -451,8 +451,11 @@ export async function combindMessageHistory(summary, messages_, history, askforc
                 role: "system",
                 content: [
                     `# Create Python code to handle user requests`,
-                    `You are a python programmer who creates python code to solve user's request.  `,
+                    `You are a python programmer who creates python code to solve user's request and questions.  `,
                     `The user will run the python code you will provide, so you should only provide python code that can be executed.  `,
+                    ``,
+                    `If the user's request is for something to be done, write Python code to do it.`,
+                    `If a user asks a question, create code that outputs the answer to the question through code processing.`,
                     ``,
                     `## INSTRUCTION:`,
                     `- Respond only with the Python code.`,

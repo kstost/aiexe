@@ -384,7 +384,11 @@ window.addEventListener('load', async () => {
         cline.push(resultContainer);
         await saveState();
         if (getAskForce() === "") {
-            messages_.push(...history_, { role: 'assistant', content: 'I will refer to it in future work.' })
+            messages_.push(...history_)
+            if (messages_[messages_.length - 1]) {
+                messages_[messages_.length - 1].content += '\n\njust say ok'
+                messages_.push({ role: 'assistant', content: 'ok' });
+            }
             if (!validateMessageStructure(messages_)) await assertion(`raise 5`);
             history_.splice(0, Infinity);
             return;
