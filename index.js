@@ -37,7 +37,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.167'; // version
+const VERSION = '1.0.168'; // version
 
 const apiMethods = {
     async venvpath(body) {
@@ -184,8 +184,9 @@ const apiMethods = {
         let code = body?.code;
         let b64 = body?.b64;
         if (!(code)) return;
+        const taskId = body?.__taskId;
         const decodedString = b64 ? Buffer.from(code, 'base64').toString('utf-8') : code;
-        return await shell_exec(decodedString, false, true, true);
+        return await shell_exec(decodedString, false, true, true, taskId);
     },
     async assignnewprompt(body) {
         // if (body?.askforce === undefined) return;

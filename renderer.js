@@ -194,9 +194,12 @@ window.addEventListener('load', async () => {
         return dt;
     }
     let oneLineMessageIndicator;
-    function showIndicator(text) {
+    function showIndicator(text, blink = false) {
         oneLineMessageIndicator?.remove();
-        if (!text) return;
+        if (!text) {
+            scrollSmoothToBottom();
+            return;
+        }
         if (typeof text === 'string') {
             const element = document.createElement('div');
             element.innerText = text;
@@ -207,7 +210,9 @@ window.addEventListener('load', async () => {
         text.style.textAlign = 'center';
         text.style.fontFamily = 'monospace';
         oneLineMessageIndicator = createConversationLine({ text: text, type: 2, parent: chatMessages });
+        if (blink) oneLineMessageIndicator.classList.add('blink');
         scrollSmoothToBottom();
+        return oneLineMessageIndicator;
     }
     window.electronAPI.receive('requesting', (arg) => {
         let resValue = '';
@@ -353,15 +358,47 @@ window.addEventListener('load', async () => {
 
 
     async function runPythonCode({ python_code, parent }) {
+        showIndicator('Checking the code before execution', true);
         python_code = removeDescriptionFromCode(python_code)
-        const neededPackageListOfObject = await reqAPI('neededpackages', { python_code });
+        const neededPackageListOfObject = await reqAPI('neededpackages', { python_code }, true);
+        showIndicator(null);
         if (neededPackageListOfObject) {
             const chosen = await createConversationLine({ text: JSON.stringify(neededPackageListOfObject), type: 6, askforce: getAskForce(), parent });
             for (let i = 0; i < chosen.length; i++) {
-                await reqAPI('installpackage', { name: chosen[i] });
+                let moduleName = neededPackageListOfObject[chosen[i]];
+                if (!moduleName) continue;
+                showIndicator('Installing ' + moduleName, true);
+                await reqAPI('installpackage', { name: chosen[i] }, true);
+                showIndicator(null);
             }
+            showIndicator(null);
         }
+        showIndicator('Running the code', true);
+
+
+
+        let abortingButton = document.createElement('button');
+        abortingButton.innerText = 'Abort';
+        abortingButton.style.background = 'transparent'
+        abortingButton.style.border = '0px'
+        abortingButton.style.cursor = 'pointer';
+        abortingButton.style.color = '#de5d58';
+        abortingButton.style.fontFamily = 'monospace';
+        let abortButtonContainer = document.createElement('div');
+        abortButtonContainer.style.textAlign = 'center';
+        abortButtonContainer.style.padding = '15px';
+        abortButtonContainer.style.cursor = 'pointer';
+        abortButtonContainer.appendChild(abortingButton);
+        chatMessages.appendChild(abortButtonContainer);
+        abortButtonContainer.addEventListener('click', async () => {
+            await abortAllTask();
+            showIndicator('The process has been successfully killed');
+            oneLineMessageIndicator = null;
+        });
+        scrollSmoothToBottom();
         const result = await reqAPI('shell_exec', { "code": python_code, "b64": false }, true);
+        abortButtonContainer.remove();
+        showIndicator(null);
         if (!result) {
             //aborting
             return;
@@ -370,7 +407,7 @@ window.addEventListener('load', async () => {
         const stdout = result.stdout
         const stderr = result.stderr
         const reviewMode = await performResultReview();
-        const assignedResult = await reqAPI('resultassigning', { python_code, result, messages_: messages_, history: history_, reviewMode });
+        const assignedResult = await reqAPI('resultassigning', { python_code, result, messages_: messages_, history: history_, reviewMode }, true);
         setAskForce(assignedResult.askforce);
         if (assignedResult?.history?.constructor !== Array) await assertion(`raise 1`);
         if (assignedResult?.messages?.constructor !== Array) await assertion(`raise 2`);
@@ -399,6 +436,7 @@ window.addEventListener('load', async () => {
             return;
         }
         if (getAskForce() === constants.ASKFORCE.ERROR) 1;
+        scrollSmoothToBottom();
     }
     async function getmodelnamed() {
         const vendorName = await reqAPI('getconfig', { key: 'USE_LLM' });

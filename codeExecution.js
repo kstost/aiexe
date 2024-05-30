@@ -26,6 +26,7 @@ import { promises as fsPromises } from 'fs';
 import { spawn, exec } from 'child_process';
 import os from 'os';
 import singleton from './singleton.js'
+import { isTaskAborted } from './mainLogic.js'
 
 export async function procPlainText(messages_, history, result2, resForOpi, apimode = false) {
     let askforce;
@@ -158,21 +159,26 @@ export async function makePreprocessingCode() {
         `# ${'-'.repeat(80)}`,
     ].join('\n'));
 }
-export async function shell_exec(python_code, only_save = false, silent = false, orasilent = false) {
+export async function shell_exec(python_code, only_save = false, silent = false, orasilent = false, taskId) {
+    const abortResult = { python_code, code: -1, stderr: 'aborted by user', stdout: '' };
+    if (isTaskAborted(taskId)) return abortResult;
     const venv_path = await getPythonVenvPath();
     if (!venv_path) return;
     return new Promise(async resolve => {
         await makePreprocessingCode();
+        if (isTaskAborted(taskId)) { resolve(abortResult); return; }
         const scriptPath = `${venv_path}/${only_save ? getCurrentDateTime() : '._code'}.py`;
         await fsPromises.writeFile(scriptPath, [
             `try:\n${threespaces}from ${preprocessing} import *\nexcept Exception:\n${threespaces}pass`,
             `# ${'-'.repeat(80)}`,
             `${python_code}`
         ].join('\n'));
+        if (isTaskAborted(taskId)) { resolve(abortResult); return; }
         if (only_save) return resolve(scriptPath);
         if (!orasilent) await oraStart(`Executing code`);
         const python_interpreter_ = await getPythonPipPath();
         if (!python_interpreter_) throw new Error('Python Interpreter Not Found');
+        if (isTaskAborted(taskId)) { resolve(abortResult); return; }
         const pythonCmd = `'${python_interpreter_}' -u '${scriptPath}'`;
         const arg = await makeVEnvCmd(pythonCmd, true);
         const env = Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' });
@@ -196,13 +202,16 @@ export async function shell_exec(python_code, only_save = false, silent = false,
         //inherit
         //if (isWindows() && isElectron())
         const child = spawn(...arg, { windowsHide, env, stdio: (isWindows() && isElectron()) ? ['pipe', 'pipe', 'pipe'] : ['inherit', 'pipe', 'pipe'], cwd });
-        attatchWatcher(child, resolve, python_code, silent);
+        attatchWatcher(child, resolve, python_code, silent, taskId, abortResult);
     });
 }
-export function attatchWatcher(child, resolve, python_code, silent = false) {
+export function attatchWatcher(child, resolve, python_code, silent = false, taskId, abortResult) {
+    let childDone = false;
     const stdout = [];
     const stderr = [];
     (isWindows() && isElectron()) && child.stdin.end();
+    if (false) child.stdout.on('end', () => { console.log('stdout end'); });
+    if (false) child.stderr.on('end', () => { console.log('stderr end'); });
     child.stdout.on('data', function (data) {
         oraStop();
         stdout.push(data);
@@ -217,10 +226,35 @@ export function attatchWatcher(child, resolve, python_code, silent = false) {
         stderr.push(data);
         if (!silent) process.stderr.write(chalk.red(data));
     });
-    child.on('close', function (code) {
-        oraStop();
-        resolve({ code, stdout: stdout.join(''), stderr: stderr.join(''), python_code });
+    child.on('exit', (code, signal) => {
+        if (!isElectron()) return;
+        console.log(`Child process exited with code ${code} and signal ${signal}`);
+        child.stdout.destroy();
+        child.stderr.destroy();
     });
+
+    child.on('close', function (code, signal) {
+        if (isElectron()) console.log(`Child process closed all stdio with code ${code} and signal ${signal}`);
+        childDone = true;
+        oraStop();
+        if (signal === 'SIGKILL' && abortResult) {
+            resolve(abortResult);
+        } else {
+            resolve({ code, stdout: stdout.join(''), stderr: stderr.join(''), python_code });
+        }
+    });
+    if (taskId) {
+        (async () => {
+            while (!childDone) {
+                if (isTaskAborted(taskId)) {
+                    child.kill('SIGKILL');
+                    childDone = true;
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        })();
+    }
 }
 export async function execInVenv(cmd, opt, callback) {
     // exec(cmd, (error, stdout, stderr) => {
