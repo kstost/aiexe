@@ -580,6 +580,8 @@ function splitTokens(input) {
 }
 function isContextWindowExceeded(errmsg) {
     if (!errmsg) return false;
+    // This model's maximum context length is 16385 tokens. However, your messages resulted in 25119 tokens. Please reduce the length of the messages.
+    return errmsg.indexOf('Please reduce the length of the messages') > -1;
     return errmsg.indexOf('Please reduce the length of the messages or completion') > -1;
 }
 export async function code_generator(summary, messages_ = [], history = [], askforce, promptSession, contextWindowRatio = 1, taskId) {
@@ -791,7 +793,7 @@ export async function code_generator(summary, messages_ = [], history = [], askf
         await oraSucceed(chalk.greenBright(`Generation succeeded with ${chalk.bold(await getModelName())}`))
     }
     await oraStop();
-    const rst = { raw, err, correct_code: !!python_code, python_code, abort, abortReason, usedModel: await getModelName() };
+    const rst = { raw, err, correct_code: !!python_code, python_code, abort, abortReason, usedModel: await getModelName(), contextWindowRatio };
     return rst;
 }
 export async function isModelLlamas() {

@@ -75,6 +75,7 @@ window.addEventListener('load', async () => {
     let askforce = '';
     let history_ = [];
     let messages_ = [];
+    let contextWindowRatio = 1;
     let summary = '';
     let promptSession;
     let currentMode = constants.CURRENT_MODE.WAITING;
@@ -94,7 +95,8 @@ window.addEventListener('load', async () => {
                 messages: messages_,
                 askforce: getAskForce(),
                 summary,
-                first
+                first,
+                contextWindowRatio,
             },
             conversationLine
         }
@@ -115,6 +117,7 @@ window.addEventListener('load', async () => {
         first = true;
         currdata = null;
         currentInputViews = null;
+        contextWindowRatio = 1;
     }
     //------------------------
     let counter = 0;
@@ -497,7 +500,7 @@ window.addEventListener('load', async () => {
     }
 
     async function requestAI(prompt) {
-        const payload = { prompt, askforce: getAskForce(), summary, messages_, history: history_, first };
+        const payload = { prompt, askforce: getAskForce(), summary, messages_, history: history_, first, contextWindowRatio };
         const procResult = await reqAPI('aireq', payload, true);
         if (!procResult) throw 10000;
         if (procResult.abortedByRenderer) throw 10001;
@@ -509,6 +512,7 @@ window.addEventListener('load', async () => {
         summary = procResult.summary;
         history_ = procResult.history;
         messages_ = procResult.messages_;
+        contextWindowRatio = procResult.contextWindowRatio || 1;
         setAskForce(procResult.askforce)
         const parent = chatMessages;
         if (procResult.correct_code) {
@@ -803,6 +807,7 @@ window.addEventListener('load', async () => {
         if (!file) return;
         const stateData = await reqAPI('getstate', { filename: file });
         const parsed = JSON.parse(stateData);
+        contextWindowRatio = parsed.environment.contextWindowRatio || 1;
         sessionDate = parsed.environment.sessionDate;
         promptSession = parsed.environment.promptSession;
         history_ = parsed.environment.history;

@@ -37,7 +37,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.168'; // version
+const VERSION = '1.0.169'; // version
 
 const apiMethods = {
     async venvpath(body) {
@@ -206,7 +206,18 @@ const apiMethods = {
         if (!body?.history) return;
         if (!body?.prompt) return;
         setContinousNetworkTryCount(0);
-        return await mainApp({ prompt: body.prompt }, true, body.history, body.messages_, body.askforce, body.summary, !!body.first, body.__taskId);
+        let arg = {
+            promptSession: { prompt: body.prompt },
+            apimode: true,
+            history: body.history,
+            messages_: body.messages_,
+            askforce: body.askforce,
+            summary: body.summary,
+            first: !!body.first,
+            taskId: body.__taskId,
+            contextWindowRatio: body.contextWindowRatio
+        };
+        return await mainApp(arg);
     },
     async createVENV(body) {
         // node index.js -a createVENV
@@ -500,7 +511,9 @@ if (!isElectron()) {
                         await installProcess();
                         await strout('')
                         const request = prompt ? prompt : await ask_prompt_text(`What can I do for you?.`);
-                        await mainApp({ prompt: request });
+
+                        // { promptSession, apimode, history, messages_, askforce, summary, first, taskId, contextWindowRatio }
+                        await mainApp({ promptSession: { prompt: request } });
                     } catch (errorInfo) { printError(errorInfo); }
                 } else {
                     let body = null;

@@ -50,7 +50,16 @@ export function isTaskAborted(taskId) {
     if (!taskId) return false;
     return !!(singleton.abortQueue[taskId]);
 }
-export async function mainApp(promptSession, apimode = false, history = [], messages_ = [], askforce = '', summary, first = false, taskId = null) {
+export async function mainApp({ promptSession, apimode, history, messages_, askforce, summary, first, taskId, contextWindowRatio }) {
+
+    if (!apimode) apimode = false;
+    if (!history) history = [];
+    if (!messages_) messages_ = [];
+    if (!askforce) askforce = '';
+    if (!first) first = false;
+    if (!taskId) taskId = null;
+    if (!contextWindowRatio) contextWindowRatio = 1;
+
     if (!apimode) {
         await checkPythonForTermination();
         await installProcess(false);
@@ -67,9 +76,10 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
         let code_saved_path;
         try {
             summary = await summarize(messages_, summary, limitline, annn, apimode);
-            result2 = await code_generator(summary, messages_, history, askforce, promptSession, 1, taskId);
+            result2 = await code_generator(summary, messages_, history, askforce, promptSession, contextWindowRatio, taskId);
             python_code = result2.python_code;
             correct_code = result2.correct_code;
+            contextWindowRatio = result2.contextWindowRatio;
             if (correct_code) {
                 code_saved_path = await shell_exec(python_code, true)
             }
@@ -101,6 +111,7 @@ export async function mainApp(promptSession, apimode = false, history = [], mess
                 `${python_code}`,
             ].join('\n');
             return {
+                contextWindowRatio,
                 promptSession,
                 mode,
                 code_saved_path,
