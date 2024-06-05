@@ -37,7 +37,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.169'; // version
+const VERSION = '1.0.170'; // version
 
 const apiMethods = {
     async venvpath(body) {
@@ -303,10 +303,206 @@ if (!isElectron()) {
             .option('-m, --choosemodel', 'Choose LLM Model')
             .option('-b, --debug <scopename>', 'Debug mode', '')
             .option('-a, --api <apimode>', 'API mode', '')
+            .option('-o, --output <output>', 'Output', '')
             // .option('-p, --python <command>', 'Run a command in the Python virtual environment')
             .action(async (prompt, options) => {
 
                 singleton.options = options;
+                if (singleton?.options?.output) {
+                    let output = singleton?.options?.output;
+                    if (!prompt) { console.log('Source is required'); return; }
+                    if (!output) { console.log('Destination is required'); return; }
+                    let source = path.resolve(prompt);
+                    output = path.resolve(output);
+                    let ext = (output.split('.').at(-1)).toLowerCase();
+                    let language = '';
+                    let langpack = [
+                        {
+                            candidate: ['python3', 'python2', 'python', 'py', ''],
+                            langname: 'python',
+                        },
+                        {
+                            candidate: ['java', ''],
+                            langname: 'java',
+                        },
+                        {
+                            candidate: ['javascript', 'js', ''],
+                            langname: 'javascript',
+                        },
+                        {
+                            candidate: ['typescript', 'ts', ''],
+                            langname: 'typescript',
+                        },
+                        {
+                            candidate: ['cpp', 'c++', 'c', ''],
+                            langname: 'c++',
+                        },
+                        {
+                            candidate: ['clang', 'c-lang', 'c', ''],
+                            langname: 'c-lang',
+                        },
+                        {
+                            candidate: ['ruby', 'rb', ''],
+                            langname: 'ruby',
+                        },
+                        {
+                            candidate: ['go', 'golang', ''],
+                            langname: 'go',
+                        },
+                        {
+                            candidate: ['php', ''],
+                            langname: 'php',
+                        },
+                        {
+                            candidate: ['swift', ''],
+                            langname: 'swift',
+                        },
+                        {
+                            candidate: ['kotlin', ''],
+                            langname: 'kotlin',
+                        },
+                        {
+                            candidate: ['rust', ''],
+                            langname: 'rust',
+                        },
+                        {
+                            candidate: ['scala', ''],
+                            langname: 'scala',
+                        },
+                        {
+                            candidate: ['perl', 'pl', ''],
+                            langname: 'perl',
+                        },
+                        {
+                            candidate: ['r', ''],
+                            langname: 'r',
+                        },
+                        {
+                            candidate: ['matlab', ''],
+                            langname: 'matlab',
+                        },
+                        {
+                            candidate: ['haskell', 'hs', ''],
+                            langname: 'haskell',
+                        },
+                        {
+                            candidate: ['lua', ''],
+                            langname: 'lua',
+                        },
+                        {
+                            candidate: ['dart', ''],
+                            langname: 'dart',
+                        },
+                        {
+                            candidate: ['shell', 'sh', 'bash', ''],
+                            langname: 'shell',
+                        },
+                        {
+                            candidate: ['elixir', ''],
+                            langname: 'elixir',
+                        },
+                        {
+                            candidate: ['erlang', ''],
+                            langname: 'erlang',
+                        },
+                        {
+                            candidate: ['clojure', 'clj', ''],
+                            langname: 'clojure',
+                        },
+                        {
+                            candidate: ['groovy', ''],
+                            langname: 'groovy',
+                        },
+                        {
+                            candidate: ['fortran', ''],
+                            langname: 'fortran',
+                        },
+                        {
+                            candidate: ['pascal', ''],
+                            langname: 'pascal',
+                        },
+                        {
+                            candidate: ['objective-c', 'objectivec', 'objc', ''],
+                            langname: 'objective-c',
+                        },
+                        {
+                            candidate: ['f#', 'fsharp', ''],
+                            langname: 'f#',
+                        },
+                        {
+                            candidate: ['ocaml', ''],
+                            langname: 'ocaml',
+                        },
+                        {
+                            candidate: ['julia', ''],
+                            langname: 'julia',
+                        },
+                        {
+                            candidate: ['cobol', ''],
+                            langname: 'cobol',
+                        },
+                        {
+                            candidate: ['vb', 'vba', 'visualbasic', ''],
+                            langname: 'visual basic',
+                        },
+                        {
+                            candidate: ['assembly', 'asm', ''],
+                            langname: 'assembly',
+                        }
+                    ];
+                    let extlist;
+                    for (let i = 0; i < langpack.length; i++) {
+                        const { candidate, langname } = langpack[i];
+                        if (candidate.includes(ext)) {
+                            language = langname;
+                            extlist = candidate;
+                            break;
+                        }
+                    }
+                    let sourcecode;
+                    try {
+                        sourcecode = await fsPromises.readFile(source);
+                    } catch {
+                        console.log('Source not found');
+                        return;
+                    }
+                    // npm run start -- -o abcd.c hello
+                    // npm run start -- -o abcd.asm naturalcode.txt
+                    // npm run start -- -o abcd.py naturalcode.txt
+                    // npm run start -- -o abcd.py
+                    if (!language) {
+                        console.log('Unsupported type');
+                        return;
+                    }
+                    let code = await aiChat([{
+                        role: "system",
+                        content: [
+                            `# Create ${language} code to handle user requests`,
+                            `You are a ${language} programmer who creates ${language} code to solve user's request and questions.  `,
+                            `The user will run the ${language} code you will provide, so you should only provide ${language} code that can be executed.  `,
+                            ``,
+                            `If the user's request is for something to be done, write ${language} code to do it.`,
+                            `If a user asks a question, create code that outputs the answer to the question through code processing.`,
+                            ``,
+                            `## INSTRUCTION:`,
+                            `- Respond only with the ${language} code.`,
+                            `- Always use the explicit output method via the print function, not expression evaluation, when your ${language} code displays results.`,
+                            `- Include all dependencies such as variables and functions required for proper execution.`,
+                            `- Do not provide any explanations about the response.`,
+                            `- Ensure the code contains all dependencies such as referenced modules, variables, functions, and classes in one complete script.`,
+                            `- The entire response must consist of only one complete form of code.`,
+                        ].join('\n').trim()
+                    }, {
+                        role: 'user',
+                        content: sourcecode.toString()
+                    }]);
+                    code = await isCorrectCode(code, extlist, true);
+                    try {
+                        await fsPromises.writeFile(output, code);
+                        console.log(`${output} has been successfully generated`);
+                    } catch { }
+                    return;
+                }
                 if (singleton?.options?.debug === 'temptest') {
                     // npm run start -- -b temptest
                     {
