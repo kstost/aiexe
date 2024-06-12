@@ -242,7 +242,7 @@ export async function realworld_which_python() {
             `Where python3`,
         ];
         try {
-            let python_path = getVarVal('PYTHON_PATH');
+            let python_path = await getVarVal('PYTHON_PATH');
             if (python_path && python_path.trim()) return python_path.trim();
         } catch { }
         try {

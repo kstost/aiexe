@@ -37,7 +37,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.171'; // version
+const VERSION = '1.0.172'; // version
 
 const apiMethods = {
     async venvpath(body) {
