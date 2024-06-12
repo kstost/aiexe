@@ -1,7 +1,7 @@
 /* global process */
 /* eslint-disable no-unused-vars, no-constant-condition, no-control-regex */
 import { setContinousNetworkTryCount, getContinousNetworkTryCount, aiChat, geminiChat, anthropicChat, groqChat, openaiChat, ollamaChat, turnOnOllamaAndGetModelList, combindMessageHistory, code_generator, getModelName, getContextWindowSize, resultTemplate, axiosPostWrap, ask_prompt_text } from './aiFeatures.js'
-import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, generateModuleInstallCode, asPyModuleName, shelljs_exec } from './codeExecution.js'
+import { makePreprocessingCode, shell_exec, execInVenv, attatchWatcher, execAdv, generateModuleInstallCode, asPyModuleName, shelljs_exec, execPlain } from './codeExecution.js'
 import { isCorrectCode, code_validator, makeVEnvCmd } from './codeModifiers.js'
 import { printError, isBadStr, addslashes, getCurrentDateTime, is_dir, is_file, isItem, splitStringIntoTokens, measureColumns, isWindows, promptChoices, isElectron } from './commons.js'
 import { createVENV, disableAllVariable, disableVariable, getRCPath, readRCDaata, getVarVal, findMissingVars, isKeyInConfig, setVarVal, openEndedPrompt, multipleChoicePrompt } from './configuration.js'
@@ -234,6 +234,36 @@ export async function realworld_which_python() {
             ...rfg
         })
     }
+    if (isWindows()) {
+        let commandList = [
+            `Where.exe python`,
+            `Where.exe python3`,
+            `Where python`,
+            `Where python3`,
+        ];
+        try {
+            let python_path = getVarVal('PYTHON_PATH');
+            if (python_path && python_path.trim()) return python_path.trim();
+        } catch { }
+        try {
+            for (let i = 0; i < commandList.length; i++) {
+                let pythonList = await execPlain(commandList[i]);
+                let pathList = pythonList.stdout.split('\n').map(line => line.trim()).filter(Boolean);
+                for (let i = 0; i < pathList.length; i++) {
+                    const ppath = pathList[i];
+                    if (ppath.endsWith('\\python.exe') || ppath.endsWith('\\python3.exe')) { } else { continue }
+                    const str = `${Math.random()}`;
+                    let rfg;
+                    if (isWindows()) rfg = await execAdv(`& '${ppath}' -c \\"print('${str}')\\"`);
+                    else rfg = await execAdv(`"${ppath}" -c "print('${str}')"`);
+                    let { stdout } = rfg;
+                    await singleton.debug({ result: stdout.trim(), source: str, comparison: stdout.trim() === str }, 'realworld_which_python');
+                    if (stdout.trim() === str) return ppath;
+                }
+            }
+        } catch { }
+    }
+
     return python_detect_result;
 }
 export async function which(cmd) {

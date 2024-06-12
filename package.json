@@ -1,6 +1,6 @@
 {
   "name": "aiexe",
-  "version": "1.0.170",
+  "version": "1.0.171",
   "description": "A cutting-edge powerful AI agent",
   "main": "index.js",
   "type": "module",
@@ -23,7 +23,7 @@
   "author": {
     "name": "Kim seungtae",
     "email": "monogatree@gmail.com",
-    "url": "https://www.youtube.com/@codeteller"
+    "url": "https://www.youtube.com/@%EC%BD%94%EB%93%9C%EA%B9%8E%EB%8A%94%EB%85%B8%EC%9D%B8"
   },
   "contributors": [],
   "scripts": {

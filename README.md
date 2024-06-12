@@ -230,6 +230,6 @@ If you need help or have any questions, please open an issue in the GitHub repos
 
 ## Subscribe
 
-Explore more exciting content about AI and coding on my YouTube channel [CodeTeller](https://www.youtube.com/@codeteller). Don't forget to subscribe for the latest updates and tutorials!
+Explore more exciting content about AI and coding on my YouTube channel [코드깎는노인](https://www.youtube.com/@코드깎는노인). Don't forget to subscribe for the latest updates and tutorials!
 
 Harness the potential of `aiexe` and transform your terminal into a powerful AI command center!

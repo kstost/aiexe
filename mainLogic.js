@@ -164,5 +164,5 @@ export async function mainApp({ promptSession, apimode, history, messages_, askf
         continue;
     }
     if (!apimode) await strout(boxen(chalk.gray.bold(` Bye for now `), { padding: 0, margin: 0, borderStyle: 'single', borderColor: 'gray' }));
-    if (!apimode) await strout(chalk.gray(`Subscribe my YouTube Channel(https://www.youtube.com/@codeteller)`));
+    if (!apimode) await strout(chalk.gray(`Subscribe my YouTube Channel(https://www.youtube.com/@코드깎는노인)`));
 }

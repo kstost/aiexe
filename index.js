@@ -37,7 +37,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERSION = '1.0.170'; // version
+const VERSION = '1.0.171'; // version
 
 const apiMethods = {
     async venvpath(body) {
@@ -269,7 +269,7 @@ if (!isElectron()) {
                     content.push(chalk.hex('#dddddd')(data));
                     content.push(chalk.hex('#dddddd')(`(c) 2024 코드깎는노인's AI Laboratories`) +
                         chalk.hex('#dddddd')(`\n  - Email: monogatree@gmail.com`) +
-                        chalk.hex('#dddddd')(`\n  - YouTube: https://www.youtube.com/@codeteller`) +
+                        chalk.hex('#dddddd')(`\n  - YouTube: https://www.youtube.com/@코드깎는노인`) +
                         chalk.hex('#dddddd')(`\n  - GitHub: https://github.com/kstost/aiexe`)
                     );
                     if (latestVersion) {
