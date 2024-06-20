@@ -6,6 +6,7 @@ let data = {
    "yaml": "PyYAML",
    "dateutil": "python-dateutil",
    "fitz": "PyMuPDF",
+   "win32com": "pywin32",
    'tabula': 'tabula-py',
    'youtube_transcript_api': 'youtube-transcript-api',
    'skimage': 'scikit-image',
