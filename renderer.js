@@ -147,7 +147,7 @@ window.addEventListener('load', async () => {
         if (vendorKey === 'anthropic') {
             return {
                 keyname: 'ANTHROPIC_MODEL',
-                modelList: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307']
+                modelList: ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307']
             };
         }
         if (vendorKey === 'groq') {

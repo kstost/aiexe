@@ -134,7 +134,7 @@ export async function installProcess(greeting = false) {
             modificationMade = true;
         }
         if (!await isKeyInConfig('ANTHROPIC_MODEL')) {
-            await multipleChoicePrompt('ANTHROPIC_MODEL', 'Which Anthropic model do you want to use for your queries?', ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'], true);
+            await multipleChoicePrompt('ANTHROPIC_MODEL', 'Which Anthropic model do you want to use for your queries?', ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'], true);
             modificationMade = true;
         }
     }

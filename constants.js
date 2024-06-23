@@ -21,6 +21,7 @@ export const contextWindows = {
     "gpt-4-turbo": 128000,
     "gpt-4": 8192,
     "gpt-3.5-turbo": 16385,
+    "claude-3-5-sonnet-20240620": 200000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
     "claude-3-haiku-20240307": 200000,
