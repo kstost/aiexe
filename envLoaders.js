@@ -114,7 +114,7 @@ export async function installProcess(greeting = false) {
             modificationMade = true;
         }
         if (!await isKeyInConfig('OPENAI_MODEL')) {
-            await multipleChoicePrompt('OPENAI_MODEL', 'Which OpenAI model do you want to use for your queries?', ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'], true);
+            await multipleChoicePrompt('OPENAI_MODEL', 'Which OpenAI model do you want to use for your queries?', ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'], true);
             modificationMade = true;
         }
     }

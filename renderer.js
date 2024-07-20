@@ -141,7 +141,7 @@ window.addEventListener('load', async () => {
         if (vendorKey === 'openai') {
             return {
                 keyname: 'OPENAI_MODEL',
-                modelList: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']
+                modelList: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']
             };
         }
         if (vendorKey === 'anthropic') {
