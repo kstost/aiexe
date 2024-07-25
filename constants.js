@@ -8,6 +8,9 @@ export const preprocessing = `preprocessing`;
 export const devmode = false;
 export const traceError = false; // 배포시 false
 export const contextWindows = {
+    "llama-3.1-405b-reasoning": 131072,
+    "llama-3.1-70b-versatile": 131072,
+
     "llama3-8b-8192": 8192,
     "llama3-70b-8192": 8192,
     // "mixtral-8x7b-32768": 32768,
@@ -28,6 +31,9 @@ export const contextWindows = {
     "claude-3-haiku-20240307": 200000,
 };
 export const llamaFamily = [
+    "llama-3.1-405b-reasoning",
+    "llama-3.1-70b-versatile",
+
     "llama3-8b-8192",
     "llama3-70b-8192",
     "llama3:latest",

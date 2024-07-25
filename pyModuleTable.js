@@ -12,6 +12,8 @@ let data = {
    'skimage': 'scikit-image',
    'kivy': 'Kivy',
    'PyQt5': 'PyQt5',
+   'docx': 'python-docx',
+   'pptx': 'python-pptx',
 };
 
 //-----------------------------------------------------------------------------------------------

@@ -153,7 +153,7 @@ window.addEventListener('load', async () => {
         if (vendorKey === 'groq') {
             return {
                 keyname: 'GROQ_MODEL',
-                modelList: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it']
+                modelList: ["llama-3.1-405b-reasoning", "llama-3.1-70b-versatile", 'llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it']
             };
         }
         if (vendorKey === 'ollama') {
@@ -231,18 +231,27 @@ window.addEventListener('load', async () => {
         }
         if (arg.mode === 'errnotify') {
             if ((reqValue || '').indexOf('does not exist or you do not have access to it') > -1) {
-                reqValue = [
-                    reqValue,
-                    ``,
-                    `OpenAI의 API사용은 ChatGPT서비스 유료구독 이용과 별도로 운영됩니다.`,
-                    `모델 이용 가능 여부는 사용량에 따라 등급이 결정되며 선택해주신 모델은 현재 사용중인 계정의 등급으로 아직 사용하지 못하는 모델로 확인됩니다.`,
-                    `사용량 등급 기준표에 따라 현재 사용하고자 하시는 모델을 사용가능하게 하는 사용량기준을 충족하는 금액을 결제하시면 사용가능 상태로 전환될 수 있습니다.`,
-                    ``,
-                    `OpenAI의 모델을 사용하고자 하신다면 다음 내용에 따라 설정하실 수 있습니다.`,
-                    `내 사용량 등급 https://platform.openai.com/settings/organization/limits`,
-                    `사용량 등급 기준표 https://platform.openai.com/docs/guides/rate-limits/usage-tiers`,
-                    `결제수단 설정 https://platform.openai.com/settings/organization/billing/overview`,
-                ].join('\n');
+                if (((reqValue || '').indexOf('`llama-3.1-405b-reasoning`')) > -1 || ((reqValue || '').indexOf('`llama-3.1-70b-versatile`')) > -1) {
+                    reqValue = [
+                        reqValue,
+                        ``,
+                        `Early API access to Llama 3.1 405B is currently only available to paying customers - stay tuned for general availability. During preview launch, we(groq.com) are limiting all 3.1 models to max_tokens of 8k and 405b to 16k input tokens.`,
+                        `https://console.groq.com/docs/models`,
+                    ].join('\n');
+                } else {
+                    reqValue = [
+                        reqValue,
+                        ``,
+                        `OpenAI의 API사용은 ChatGPT서비스 유료구독 이용과 별도로 운영됩니다.`,
+                        `모델 이용 가능 여부는 사용량에 따라 등급이 결정되며 선택해주신 모델은 현재 사용중인 계정의 등급으로 아직 사용하지 못하는 모델로 확인됩니다.`,
+                        `사용량 등급 기준표에 따라 현재 사용하고자 하시는 모델을 사용가능하게 하는 사용량기준을 충족하는 금액을 결제하시면 사용가능 상태로 전환될 수 있습니다.`,
+                        ``,
+                        `OpenAI의 모델을 사용하고자 하신다면 다음 내용에 따라 설정하실 수 있습니다.`,
+                        `내 사용량 등급 https://platform.openai.com/settings/organization/limits`,
+                        `사용량 등급 기준표 https://platform.openai.com/docs/guides/rate-limits/usage-tiers`,
+                        `결제수단 설정 https://platform.openai.com/settings/organization/billing/overview`,
+                    ].join('\n');
+                }
             }
             const err = document.createElement('div');
             err.innerText = reqValue;
