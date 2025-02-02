@@ -8,6 +8,7 @@ export const preprocessing = `preprocessing`;
 export const devmode = false;
 export const traceError = false; // 배포시 false
 export const contextWindows = {
+    "Deepseek-R1-Distill-Llama-70b": 128000,
     "llama-3.1-405b-reasoning": 131072,
     "llama-3.1-70b-versatile": 131072,
 
