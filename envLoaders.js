@@ -124,7 +124,7 @@ export async function installProcess(greeting = false) {
             modificationMade = true;
         }
         if (!await isKeyInConfig('GROQ_MODEL')) {
-            await multipleChoicePrompt('GROQ_MODEL', 'Which Groq model do you want to use for your queries?', ["llama-3.1-405b-reasoning", "llama-3.1-70b-versatile", 'llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it'], true);
+            await multipleChoicePrompt('GROQ_MODEL', 'Which Groq model do you want to use for your queries?', ["Deepseek-R1-Distill-Llama-70b", "llama-3.1-405b-reasoning", "llama-3.1-70b-versatile", 'llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it'], true);
             modificationMade = true;
         }
     }
